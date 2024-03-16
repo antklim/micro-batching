@@ -16,6 +16,14 @@ func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
 
 var _ mb.BatchProcessor = (*TestBP)(nil)
 
+type TestJob struct{}
+
+func (j *TestJob) Do() mb.JobResult {
+	return mb.JobResult{Result: "OK"}
+}
+
+var _ mb.Job = (*TestJob)(nil)
+
 func TestServiceInit(t *testing.T) {
 	testCases := []struct {
 		desc              string
@@ -47,4 +55,31 @@ func TestServiceInit(t *testing.T) {
 			assert.Equal(t, tC.expectedFrequency, srv.Frequency())
 		})
 	}
+}
+
+func TestServiceAddJob(t *testing.T) {
+	srv := mb.NewService(&TestBP{})
+
+	assert.Equal(t, 0, srv.JobsQueueSize())
+
+	jobsNum := 5
+	for i := 0; i < jobsNum; i++ {
+		_, err := srv.AddJob(&TestJob{})
+		assert.NoError(t, err)
+	}
+
+	assert.Equal(t, jobsNum, srv.JobsQueueSize())
+}
+
+func TestServiceAddJobWhenShuttingDown(t *testing.T) {
+	srv := mb.NewService(&TestBP{})
+	srv.Shutdown()
+
+	_, err := srv.AddJob(&TestJob{})
+	assert.Equal(t, mb.ErrServiceClosed, err)
+}
+
+func TestServiceProcessJobs(t *testing.T) {
+	// Processes jobs in the queue.
+	// Calls the processor with the batch of jobs every X interval.
 }

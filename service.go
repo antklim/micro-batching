@@ -1,6 +1,13 @@
 package microbatching
 
-import "time"
+import (
+	"errors"
+	"sync/atomic"
+	"time"
+)
+
+// ErrServiceClosed is returned by the [Service.AddJob] methods after a call to [Service.Shutdown].
+var ErrServiceClosed = errors.New("microbatching: Service closed")
 
 type serviceOptions struct {
 	batchSize int
@@ -14,9 +21,11 @@ var defaultOptions = serviceOptions{
 
 // Service is a micro-batching service that processes jobs in batches.
 type Service struct {
-	processor BatchProcessor
-	opts      serviceOptions
-	jobs      []Job
+	processor  BatchProcessor
+	opts       serviceOptions
+	inShutdown atomic.Bool
+
+	jobs []Job
 }
 
 func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
@@ -25,6 +34,8 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	for _, o := range opt {
 		o.apply(&opts)
 	}
+
+	// TODO: start ticker with the frequency
 
 	return &Service{
 		processor: processor,
@@ -46,33 +57,20 @@ func (s *Service) JobsQueueSize() int {
 	return len(s.jobs)
 }
 
-// ServiceOption sets service options such as batch size and frequency.
-type ServiceOption interface {
-	apply(*serviceOptions)
+// AddJob adds a job to the queue.
+func (s *Service) AddJob(job Job) (JobResult, error) {
+	if s.shuttingDown() {
+		return JobResult{}, ErrServiceClosed
+	}
+
+	s.jobs = append(s.jobs, job)
+	return JobResult{}, nil
 }
 
-type funcOption struct {
-	f func(*serviceOptions)
+func (s *Service) shuttingDown() bool {
+	return s.inShutdown.Load()
 }
 
-func (fo *funcOption) apply(o *serviceOptions) {
-	fo.f(o)
-}
-
-func newFuncOption(f func(*serviceOptions)) *funcOption {
-	return &funcOption{f}
-}
-
-// WithBatchSize returns a ServiceOption that sets batch size.
-func WithBatchSize(v int) ServiceOption {
-	return newFuncOption(func(o *serviceOptions) {
-		o.batchSize = v
-	})
-}
-
-// WithBatchSize returns a ServiceOption that sets frequency.
-func WithFrequency(v time.Duration) ServiceOption {
-	return newFuncOption(func(o *serviceOptions) {
-		o.frequency = v
-	})
+func (s *Service) Shutdown() {
+	s.inShutdown.Store(true)
 }
