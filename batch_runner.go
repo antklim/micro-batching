@@ -1,7 +1,7 @@
 package microbatching
 
 import (
-	"fmt"
+	"sync/atomic"
 	"time"
 )
 
@@ -11,6 +11,8 @@ type batchRunner struct {
 	frequency time.Duration
 	jobs      <-chan job
 	done      <-chan bool
+
+	ticks atomic.Uint32
 }
 
 func (br *batchRunner) run() {
@@ -26,12 +28,11 @@ func (br *batchRunner) run() {
 	for {
 		select {
 		case <-br.done:
-			fmt.Println(">>> Abort ....")
 			batcher.batch()
 
 			return
 		case <-ticker.C:
-			fmt.Println(">>> Tick ....")
+			br.ticks.Add(1)
 			batcher.batch()
 		}
 	}
