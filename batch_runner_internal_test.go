@@ -10,8 +10,15 @@ import (
 )
 
 type TestJob struct {
-	ID int
-	T  time.Time
+	id string
+}
+
+func NewTestJob() *TestJob {
+	return &TestJob{id: ulid.Make().String()}
+}
+
+func (j *TestJob) ID() string {
+	return j.id
 }
 
 func (j *TestJob) Do() JobResult {
@@ -104,7 +111,7 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	// make sure the jobs are in the queue before starting the batch runner
@@ -117,7 +124,7 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 	assert.Equal(t, 0, len(jobs))
 
 	for i := 11; i < 22; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	time.Sleep(52 * time.Millisecond)
@@ -145,7 +152,7 @@ func TestBatchRunnerAfterAbortSignal(t *testing.T) {
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	assert.Equal(t, 11, len(jobs))

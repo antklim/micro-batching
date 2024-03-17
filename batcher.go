@@ -19,7 +19,7 @@ func (b *batcher) batch() {
 		}
 
 		j := <-b.jobs
-		batch = append(batch, j.J)
+		batch = append(batch, j.Job)
 	}
 
 	if len(batch) > 0 {

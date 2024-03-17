@@ -3,7 +3,6 @@ package microbatching
 import (
 	"testing"
 
-	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,7 +19,7 @@ func TestBatch(t *testing.T) {
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	// make sure the jobs are in the queue before calling batch

@@ -17,7 +17,17 @@ func (bp *TestBP) Process(props mb.ProcessProps) []mb.JobResult {
 
 var _ mb.BatchProcessor = (*TestBP)(nil)
 
-type TestJob struct{}
+type TestJob struct {
+	id string
+}
+
+func NewTestJob() *TestJob {
+	return &TestJob{id: ulid.Make().String()}
+}
+
+func (j *TestJob) ID() string {
+	return j.id
+}
 
 func (j *TestJob) Do() mb.JobResult {
 	return mb.JobResult{Result: "OK"}
@@ -69,7 +79,7 @@ func TestServiceAddJob(t *testing.T) {
 
 	jobsNum := 5
 	for i := 0; i < jobsNum; i++ {
-		_, err := srv.AddJob(&TestJob{})
+		err := srv.AddJob(&TestJob{})
 		assert.NoError(t, err)
 	}
 
@@ -79,19 +89,22 @@ func TestServiceAddJob(t *testing.T) {
 func TestServiceJobResult(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 
-	jobID, err := srv.AddJob(&TestJob{})
+	testJob := &TestJob{}
+
+	err := srv.AddJob(testJob)
 	assert.NoError(t, err)
 
-	jobResult, err := srv.JobResult(jobID)
+	jobState, jobResult, err := srv.JobResult(testJob.ID())
 	assert.NoError(t, err)
 
-	assert.Equal(t, mb.JobResult{Err: nil, Result: nil, State: mb.Submitted}, jobResult)
+	assert.Equal(t, mb.Submitted, jobState)
+	assert.Equal(t, mb.JobResult{Err: nil, Result: nil}, jobResult)
 }
 
 func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 
-	_, err := srv.JobResult(ulid.ULID{})
+	_, _, err := srv.JobResult("non-existing-job-id")
 	assert.Equal(t, mb.ErrJobNotFound, err)
 }
 
@@ -99,7 +112,7 @@ func TestServiceAddJobWhenShuttingDown(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 	srv.Shutdown()
 
-	_, err := srv.AddJob(&TestJob{})
+	err := srv.AddJob(&TestJob{})
 	assert.Equal(t, mb.ErrServiceClosed, err)
 }
 
