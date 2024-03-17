@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync/atomic"
 	"time"
+
+	"github.com/oklog/ulid/v2"
 )
 
 // ErrServiceClosed is returned by the [Service.AddJob] methods after a call to [Service.Shutdown].
@@ -27,10 +29,9 @@ type Service struct {
 	inShutdown atomic.Bool
 
 	processor BatchProcessor
-	pTicker   *time.Ticker
 	pDone     chan bool
 
-	jobs []Job
+	jobs chan job
 }
 
 func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
@@ -40,24 +41,20 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 		o.apply(&opts)
 	}
 
-	// pTicker := time.NewTicker(opts.frequency)
-	// pDone := make(chan bool)
+	pDone := make(chan bool)
 
-	// go func() {
-	// 	for {
-	// 		select {
-	// 		case <-pDone:
-	// 			return
-	// 		case t := <-pTicker.C:
-	// 			processor.Process(ProcessProps{nil, t})
-	// 		}
-	// 	}
-	// }()
+	go batchRunner(batchRunnerProps{
+		batchSize: opts.batchSize,
+		frequency: opts.frequency,
+		processor: processor,
+		done:      pDone,
+	})
 
 	return &Service{
 		processor: processor,
 		opts:      opts,
-		jobs:      make([]Job, 0, opts.queueSize),
+		jobs:      make(chan job, opts.queueSize),
+		pDone:     pDone,
 	}
 }
 
@@ -75,13 +72,17 @@ func (s *Service) JobsQueueSize() int {
 }
 
 // AddJob adds a job to the queue.
-func (s *Service) AddJob(job Job) (JobResult, error) {
+func (s *Service) AddJob(j Job) (ulid.ULID, error) {
 	if s.shuttingDown() {
-		return JobResult{}, ErrServiceClosed
+		return ulid.ULID{}, ErrServiceClosed
 	}
 
-	s.jobs = append(s.jobs, job)
-	return JobResult{}, nil
+	jobID := ulid.Make()
+	newJob := job{ID: jobID, J: j}
+
+	s.jobs <- newJob
+
+	return jobID, nil
 }
 
 func (s *Service) shuttingDown() bool {
@@ -90,6 +91,5 @@ func (s *Service) shuttingDown() bool {
 
 func (s *Service) Shutdown() {
 	s.inShutdown.Store(true)
-	// s.pTicker.Stop()
-	// s.pDone <- true
+	s.pDone <- true
 }
