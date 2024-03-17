@@ -46,9 +46,7 @@ func (bp *TestBP) Counter() uint32 {
 var _ BatchProcessor = (*TestBP)(nil)
 
 func TestBatchRunnerDoesNotCallBatchProcessorWhenTheresNoJobs(t *testing.T) {
-	jobs := make(chan job, 100)
 	done := make(chan bool)
-	defer close(jobs)
 	defer close(done)
 
 	bp := &TestBP{}
@@ -57,7 +55,6 @@ func TestBatchRunnerDoesNotCallBatchProcessorWhenTheresNoJobs(t *testing.T) {
 		processor: bp,
 		batchSize: 3,
 		frequency: 100 * time.Millisecond,
-		jobs:      jobs,
 		done:      done,
 	})
 
