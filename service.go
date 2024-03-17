@@ -45,19 +45,21 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 		o.apply(&opts)
 	}
 
+	jobs := make(chan job, opts.queueSize)
 	pDone := make(chan bool)
 
 	go batchRunner(batchRunnerProps{
 		batchSize: opts.batchSize,
 		frequency: opts.frequency,
 		processor: processor,
+		jobs:      jobs,
 		done:      pDone,
 	})
 
 	return &Service{
 		processor:  processor,
 		opts:       opts,
-		jobs:       make(chan job, opts.queueSize),
+		jobs:       jobs,
 		jobResults: make(map[ulid.ULID]JobResult),
 		pDone:      pDone,
 	}
@@ -108,6 +110,12 @@ func (s *Service) shuttingDown() bool {
 
 // Shutdown stops the service.
 func (s *Service) Shutdown() {
+	if s.shuttingDown() {
+		return
+	}
+
 	s.inShutdown.Store(true)
 	s.pDone <- true
+
+	close(s.jobs)
 }
