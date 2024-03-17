@@ -5,20 +5,10 @@ import (
 	"time"
 )
 
-type ProcessProps struct {
-	jobs      []Job
-	startTime time.Time
-}
-
-type BatchProcessor interface {
-	Process(props ProcessProps) []JobResult
-}
-
 type batcherProps struct {
 	batchSize int
 	jobs      <-chan job
 	p         BatchProcessor
-	t         time.Time
 }
 
 func batcher(props batcherProps) {
@@ -28,7 +18,7 @@ func batcher(props batcherProps) {
 
 	for i := 0; i < size; i++ {
 		if len(batch) == props.batchSize {
-			props.p.Process(ProcessProps{batch, props.t})
+			props.p.Process(ProcessProps{batch})
 			batch = make([]Job, 0, props.batchSize)
 		}
 
@@ -37,7 +27,7 @@ func batcher(props batcherProps) {
 	}
 
 	if len(batch) > 0 {
-		props.p.Process(ProcessProps{batch, props.t})
+		props.p.Process(ProcessProps{batch})
 	}
 }
 
@@ -61,17 +51,15 @@ func batchRunner(props batchRunnerProps) {
 				batchSize: props.batchSize,
 				jobs:      props.jobs,
 				p:         props.processor,
-				t:         time.Now(),
 			})
 
 			return
-		case t := <-ticker.C:
+		case <-ticker.C:
 			fmt.Println(">>> Tick ....")
 			batcher(batcherProps{
 				batchSize: props.batchSize,
 				jobs:      props.jobs,
 				p:         props.processor,
-				t:         t,
 			})
 		}
 	}

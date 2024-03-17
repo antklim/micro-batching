@@ -32,7 +32,6 @@ func (bp *TestBP) Process(props ProcessProps) []JobResult {
 	fmt.Printf("Starting batch #%d, len %d\n", bp.counter.Load(), len(props.jobs))
 
 	for _, j := range props.jobs {
-		fmt.Print(props.startTime, " ")
 		j.Do()
 	}
 
