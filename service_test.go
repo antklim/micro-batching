@@ -85,7 +85,7 @@ func TestServiceJobResult(t *testing.T) {
 	jobResult, err := srv.JobResult(jobID)
 	assert.NoError(t, err)
 
-	assert.Equal(t, mb.JobResult{Err: nil, Result: nil}, jobResult)
+	assert.Equal(t, mb.JobResult{Err: nil, Result: nil, State: mb.Submitted}, jobResult)
 }
 
 func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
