@@ -1,5 +1,12 @@
 package microbatching
 
+import "time"
+
+type ProcessProps struct {
+	jobs      []Job
+	startTime time.Time
+}
+
 type BatchProcessor interface {
-	Process(jobs []Job) []JobResult
+	Process(props ProcessProps) []JobResult
 }
