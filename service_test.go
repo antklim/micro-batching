@@ -10,7 +10,7 @@ import (
 
 type TestBP struct{}
 
-func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
+func (bp *TestBP) Process(props mb.ProcessProps) []mb.JobResult {
 	return nil
 }
 
@@ -30,20 +30,24 @@ func TestServiceInit(t *testing.T) {
 		opts              []mb.ServiceOption
 		expectedBatchSize int
 		expectedFrequency time.Duration
+		expectedQueueSize int
 	}{
 		{
 			desc:              "inits service with default options",
 			expectedBatchSize: 3,
 			expectedFrequency: time.Second,
+			expectedQueueSize: 100,
 		},
 		{
 			desc: "inits service with custom options",
 			opts: []mb.ServiceOption{
 				mb.WithBatchSize(15),
 				mb.WithFrequency(5 * time.Minute),
+				mb.WithQueueSize(200),
 			},
 			expectedBatchSize: 15,
 			expectedFrequency: 5 * time.Minute,
+			expectedQueueSize: 200,
 		},
 	}
 
@@ -80,6 +84,7 @@ func TestServiceAddJobWhenShuttingDown(t *testing.T) {
 }
 
 func TestServiceProcessJobs(t *testing.T) {
+	t.Skip("not implemented")
 	// Processes jobs in the queue.
 	// Calls the processor with the batch of jobs every X interval.
 }

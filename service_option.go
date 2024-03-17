@@ -26,9 +26,16 @@ func WithBatchSize(v int) ServiceOption {
 	})
 }
 
-// WithBatchSize returns a ServiceOption that sets frequency.
+// WithFrequency returns a ServiceOption that sets frequency.
 func WithFrequency(v time.Duration) ServiceOption {
 	return newFuncOption(func(o *serviceOptions) {
 		o.frequency = v
+	})
+}
+
+// WithQueueSize returns a ServiceOption that sets jobs queue size.
+func WithQueueSize(v int) ServiceOption {
+	return newFuncOption(func(o *serviceOptions) {
+		o.queueSize = v
 	})
 }

@@ -12,18 +12,23 @@ var ErrServiceClosed = errors.New("microbatching: Service closed")
 type serviceOptions struct {
 	batchSize int
 	frequency time.Duration
+	queueSize int
 }
 
 var defaultOptions = serviceOptions{
 	batchSize: 3,
 	frequency: time.Second,
+	queueSize: 100,
 }
 
 // Service is a micro-batching service that processes jobs in batches.
 type Service struct {
-	processor  BatchProcessor
 	opts       serviceOptions
 	inShutdown atomic.Bool
+
+	processor BatchProcessor
+	pTicker   *time.Ticker
+	pDone     chan bool
 
 	jobs []Job
 }
@@ -35,12 +40,24 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 		o.apply(&opts)
 	}
 
-	// TODO: start ticker with the frequency
+	// pTicker := time.NewTicker(opts.frequency)
+	// pDone := make(chan bool)
+
+	// go func() {
+	// 	for {
+	// 		select {
+	// 		case <-pDone:
+	// 			return
+	// 		case t := <-pTicker.C:
+	// 			processor.Process(ProcessProps{nil, t})
+	// 		}
+	// 	}
+	// }()
 
 	return &Service{
 		processor: processor,
 		opts:      opts,
-		jobs:      make([]Job, 0, opts.batchSize),
+		jobs:      make([]Job, 0, opts.queueSize),
 	}
 }
 
@@ -73,4 +90,6 @@ func (s *Service) shuttingDown() bool {
 
 func (s *Service) Shutdown() {
 	s.inShutdown.Store(true)
+	// s.pTicker.Stop()
+	// s.pDone <- true
 }
