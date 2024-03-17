@@ -73,6 +73,12 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 
 	bp := &TestBP{}
 
+	for i := 0; i < 11; i++ {
+		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+	}
+
+	assert.Equal(t, 11, len(jobs))
+
 	go batchRunner(batchRunnerProps{
 		processor: bp,
 		batchSize: 3,
@@ -81,13 +87,49 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 		done:      done,
 	})
 
+	time.Sleep(500 * time.Millisecond)
+
+	for i := 11; i < 22; i++ {
+		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+	}
+
+	assert.Equal(t, 11, len(jobs))
+
+	time.Sleep(500 * time.Millisecond)
+
+	done <- true
+
+	time.Sleep(500 * time.Millisecond)
+
+	assert.Equal(t, 0, len(jobs))
+	assert.Equal(t, uint32(8), bp.Counter())
+}
+
+func TestBatchRunnerAfterAbortSignal(t *testing.T) {
+	jobs := make(chan job, 100)
+	done := make(chan bool)
+	defer close(jobs)
+	defer close(done)
+
+	bp := &TestBP{}
+
 	for i := 0; i < 11; i++ {
 		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
 	}
 
-	time.Sleep(510 * time.Millisecond)
+	assert.Equal(t, 11, len(jobs))
+
+	go batchRunner(batchRunnerProps{
+		processor: bp,
+		batchSize: 3,
+		frequency: 100 * time.Millisecond,
+		jobs:      jobs,
+		done:      done,
+	})
 
 	done <- true
 
-	assert.Equal(t, uint32(5), bp.Counter())
+	time.Sleep(500 * time.Millisecond)
+
+	assert.Equal(t, 0, len(jobs))
 }

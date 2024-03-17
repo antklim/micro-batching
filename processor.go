@@ -24,7 +24,9 @@ type batcherProps struct {
 func batcher(props batcherProps) {
 	batch := make([]Job, 0, props.batchSize)
 
-	for i := 0; i < len(props.jobs); i++ {
+	size := len(props.jobs)
+
+	for i := 0; i < size; i++ {
 		if len(batch) == props.batchSize {
 			props.p.Process(ProcessProps{batch, props.t})
 			batch = make([]Job, 0, props.batchSize)
