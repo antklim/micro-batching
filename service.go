@@ -11,6 +11,9 @@ import (
 // ErrServiceClosed is returned by the [Service.AddJob] methods after a call to [Service.Shutdown].
 var ErrServiceClosed = errors.New("microbatching: Service closed")
 
+// ErrJobNotFound is returned by the [Service.JobResult] method when the job is not found.
+var ErrJobNotFound = errors.New("microbatching: Job not found")
+
 type serviceOptions struct {
 	batchSize int
 	frequency time.Duration
@@ -31,7 +34,8 @@ type Service struct {
 	processor BatchProcessor
 	pDone     chan bool
 
-	jobs chan job
+	jobs       chan job
+	jobResults map[ulid.ULID]JobResult
 }
 
 func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
@@ -51,10 +55,11 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	})
 
 	return &Service{
-		processor: processor,
-		opts:      opts,
-		jobs:      make(chan job, opts.queueSize),
-		pDone:     pDone,
+		processor:  processor,
+		opts:       opts,
+		jobs:       make(chan job, opts.queueSize),
+		jobResults: make(map[ulid.ULID]JobResult),
+		pDone:      pDone,
 	}
 }
 
@@ -71,7 +76,7 @@ func (s *Service) JobsQueueSize() int {
 	return len(s.jobs)
 }
 
-// AddJob adds a job to the queue.
+// AddJob adds a job to the queue. It returns an error if the service is closed.
 func (s *Service) AddJob(j Job) (ulid.ULID, error) {
 	if s.shuttingDown() {
 		return ulid.ULID{}, ErrServiceClosed
@@ -80,15 +85,28 @@ func (s *Service) AddJob(j Job) (ulid.ULID, error) {
 	jobID := ulid.Make()
 	newJob := job{ID: jobID, J: j}
 
+	s.jobResults[jobID] = JobResult{}
 	s.jobs <- newJob
 
 	return jobID, nil
+}
+
+// JobResult returns the result of a job. It returns an error if the job is not found.
+func (s *Service) JobResult(jobID ulid.ULID) (JobResult, error) {
+	result, ok := s.jobResults[jobID]
+
+	if !ok {
+		return JobResult{}, ErrJobNotFound
+	}
+
+	return result, nil
 }
 
 func (s *Service) shuttingDown() bool {
 	return s.inShutdown.Load()
 }
 
+// Shutdown stops the service.
 func (s *Service) Shutdown() {
 	s.inShutdown.Store(true)
 	s.pDone <- true
