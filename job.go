@@ -18,6 +18,7 @@ type Job interface {
 }
 
 type JobResult struct {
+	JobID  string
 	Err    error
 	Result interface{}
 }

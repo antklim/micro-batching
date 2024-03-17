@@ -14,7 +14,7 @@ func (b *batcher) batch() {
 
 	for i := 0; i < queueSize; i++ {
 		if len(batch) == b.batchSize {
-			b.p.Process(ProcessProps{batch})
+			b.p.Process(batch)
 			batch = make([]Job, 0, b.batchSize)
 		}
 
@@ -23,6 +23,6 @@ func (b *batcher) batch() {
 	}
 
 	if len(batch) > 0 {
-		b.p.Process(ProcessProps{batch})
+		b.p.Process(batch)
 	}
 }

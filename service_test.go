@@ -11,7 +11,7 @@ import (
 
 type TestBP struct{}
 
-func (bp *TestBP) Process(props mb.ProcessProps) []mb.JobResult {
+func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
 	return nil
 }
 
