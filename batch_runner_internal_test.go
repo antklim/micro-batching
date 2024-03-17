@@ -27,7 +27,10 @@ type TestBP struct {
 func (bp *TestBP) Process(props ProcessProps) []JobResult {
 	bp.counter.Add(1)
 
+	// fmt.Printf("Processing batch #%d\n", bp.counter.Load())
+
 	for _, j := range props.jobs {
+		// fmt.Printf("Processing job #%d\n", j.(*TestJob).ID)
 		j.Do()
 	}
 
