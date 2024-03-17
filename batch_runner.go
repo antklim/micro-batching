@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type batchRunnerProps struct {
+type batchRunner struct {
 	processor BatchProcessor
 	batchSize int
 	frequency time.Duration
@@ -13,19 +13,19 @@ type batchRunnerProps struct {
 	done      <-chan bool
 }
 
-func batchRunner(props batchRunnerProps) {
+func (br *batchRunner) run() {
 	batcher := batcher{
-		batchSize: props.batchSize,
-		jobs:      props.jobs,
-		p:         props.processor,
+		batchSize: br.batchSize,
+		jobs:      br.jobs,
+		p:         br.processor,
 	}
 
-	ticker := time.NewTicker(props.frequency)
+	ticker := time.NewTicker(br.frequency)
 	defer ticker.Stop()
 
 	for {
 		select {
-		case <-props.done:
+		case <-br.done:
 			fmt.Println(">>> Abort ....")
 			batcher.batch()
 

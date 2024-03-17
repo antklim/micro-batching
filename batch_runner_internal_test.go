@@ -50,12 +50,14 @@ func TestBatchRunnerDoesNotCallBatchProcessorWhenTheresNoJobs(t *testing.T) {
 
 	bp := &TestBP{}
 
-	go batchRunner(batchRunnerProps{
+	br := batchRunner{
 		processor: bp,
 		batchSize: 3,
 		frequency: 100 * time.Millisecond,
 		done:      done,
-	})
+	}
+
+	go br.run()
 
 	time.Sleep(510 * time.Millisecond)
 
@@ -71,6 +73,13 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 	defer close(done)
 
 	bp := &TestBP{}
+	br := batchRunner{
+		processor: bp,
+		batchSize: 3,
+		frequency: 100 * time.Millisecond,
+		jobs:      jobs,
+		done:      done,
+	}
 
 	for i := 0; i < 11; i++ {
 		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
@@ -78,13 +87,7 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 
 	assert.Equal(t, 11, len(jobs))
 
-	go batchRunner(batchRunnerProps{
-		processor: bp,
-		batchSize: 3,
-		frequency: 100 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
-	})
+	go br.run()
 
 	time.Sleep(500 * time.Millisecond)
 
@@ -111,6 +114,13 @@ func TestBatchRunnerAfterAbortSignal(t *testing.T) {
 	defer close(done)
 
 	bp := &TestBP{}
+	br := batchRunner{
+		processor: bp,
+		batchSize: 3,
+		frequency: 100 * time.Millisecond,
+		jobs:      jobs,
+		done:      done,
+	}
 
 	for i := 0; i < 11; i++ {
 		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
@@ -118,13 +128,7 @@ func TestBatchRunnerAfterAbortSignal(t *testing.T) {
 
 	assert.Equal(t, 11, len(jobs))
 
-	go batchRunner(batchRunnerProps{
-		processor: bp,
-		batchSize: 3,
-		frequency: 100 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
-	})
+	go br.run()
 
 	done <- true
 

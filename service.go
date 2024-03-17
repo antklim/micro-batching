@@ -48,13 +48,15 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	jobs := make(chan job, opts.queueSize)
 	pDone := make(chan bool)
 
-	go batchRunner(batchRunnerProps{
+	br := batchRunner{
 		batchSize: opts.batchSize,
 		frequency: opts.frequency,
 		processor: processor,
 		jobs:      jobs,
 		done:      pDone,
-	})
+	}
+
+	go br.run()
 
 	return &Service{
 		processor:  processor,
