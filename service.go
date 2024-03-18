@@ -2,7 +2,6 @@ package microbatching
 
 import (
 	"errors"
-	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -48,6 +47,7 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	jobs := make(chan job, opts.queueSize)
 	jobNotifications := make(chan jobNotification, opts.queueSize)
 	pDone := make(chan bool)
+	jobResults := make(map[string]job)
 
 	br := batchRunner{
 		batchSize:        opts.batchSize,
@@ -62,7 +62,18 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 
 	go func() {
 		for jn := range jobNotifications {
-			fmt.Printf("Job %s is %s\n", jn.JobID, jn.State)
+			result := jobResults[jn.JobID]
+
+			newResult := job{
+				Job:   result.Job,
+				State: jn.State,
+			}
+
+			if jn.State == Completed {
+				newResult.Result = jn.Result
+			}
+
+			jobResults[jn.JobID] = newResult
 		}
 	}()
 
@@ -71,7 +82,7 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 		opts:             opts,
 		jobs:             jobs,
 		jobNotifications: jobNotifications,
-		jobResults:       make(map[string]job),
+		jobResults:       jobResults,
 		pDone:            pDone,
 	}
 }
@@ -84,18 +95,13 @@ func (s *Service) Frequency() time.Duration {
 	return s.opts.frequency
 }
 
-// JobsQueueSize returns the number of jobs in the queue.
-func (s *Service) JobsQueueSize() int {
-	return len(s.jobs)
-}
-
 // AddJob adds a job to the queue. It returns an error if the service is closed.
 func (s *Service) AddJob(j Job) error {
 	if s.shuttingDown() {
 		return ErrServiceClosed
 	}
 
-	newJob := job{j, Submitted, JobResult{}}
+	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
 
 	s.jobResults[j.ID()] = newJob
 	s.jobs <- newJob

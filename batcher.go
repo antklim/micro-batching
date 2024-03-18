@@ -39,6 +39,14 @@ func (b *batcher) batch() {
 	}
 
 	if len(batch) > 0 {
-		b.p.Process(batch)
+		jobResults := b.p.Process(batch)
+
+		for _, r := range jobResults {
+			b.jobNotifications <- jobNotification{
+				JobID:  r.JobID,
+				State:  Completed,
+				Result: r,
+			}
+		}
 	}
 }
