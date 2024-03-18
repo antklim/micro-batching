@@ -1,11 +1,11 @@
-package runner_test
+package internal_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	mb "github.com/antklim/micro-batching/internal/runner"
+	mb "github.com/antklim/micro-batching/internal"
 )
 
 type mockBatchProcessor struct{}

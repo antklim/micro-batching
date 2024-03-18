@@ -1,9 +1,9 @@
-package batch_test
+package internal_test
 
 import (
 	"testing"
 
-	mb "github.com/antklim/micro-batching/internal/batch"
+	mb "github.com/antklim/micro-batching/internal"
 	"github.com/stretchr/testify/assert"
 )
 

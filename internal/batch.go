@@ -1,4 +1,4 @@
-package batch
+package internal
 
 func Batch[V any](batchSize int, values <-chan V, batches chan<- []V) {
 	var batch []V
