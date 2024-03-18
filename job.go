@@ -1,7 +1,5 @@
 package microbatching
 
-import "github.com/oklog/ulid/v2"
-
 type JobState int
 
 const (
@@ -15,16 +13,24 @@ func (s JobState) String() string {
 }
 
 type Job interface {
+	ID() string
 	Do() JobResult
 }
 
 type JobResult struct {
+	JobID  string
 	Err    error
 	Result interface{}
-	State  JobState
 }
 
 type job struct {
-	ID ulid.ULID
-	J  Job
+	Job    Job
+	State  JobState
+	Result JobResult
+}
+
+type jobNotification struct {
+	JobID  string
+	State  JobState
+	Result JobResult
 }

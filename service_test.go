@@ -11,16 +11,32 @@ import (
 
 type TestBP struct{}
 
-func (bp *TestBP) Process(props mb.ProcessProps) []mb.JobResult {
-	return nil
+func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
+	results := make([]mb.JobResult, 0, len(jobs))
+
+	for _, j := range jobs {
+		results = append(results, j.Do())
+	}
+
+	return results
 }
 
 var _ mb.BatchProcessor = (*TestBP)(nil)
 
-type TestJob struct{}
+type TestJob struct {
+	id string
+}
+
+func NewTestJob() *TestJob {
+	return &TestJob{id: ulid.Make().String()}
+}
+
+func (j *TestJob) ID() string {
+	return j.id
+}
 
 func (j *TestJob) Do() mb.JobResult {
-	return mb.JobResult{Result: "OK"}
+	return mb.JobResult{JobID: j.id, Result: "OK"}
 }
 
 var _ mb.Job = (*TestJob)(nil)
@@ -62,36 +78,25 @@ func TestServiceInit(t *testing.T) {
 	}
 }
 
-func TestServiceAddJob(t *testing.T) {
-	srv := mb.NewService(&TestBP{})
-
-	assert.Equal(t, 0, srv.JobsQueueSize())
-
-	jobsNum := 5
-	for i := 0; i < jobsNum; i++ {
-		_, err := srv.AddJob(&TestJob{})
-		assert.NoError(t, err)
-	}
-
-	assert.Equal(t, jobsNum, srv.JobsQueueSize())
-}
-
 func TestServiceJobResult(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 
-	jobID, err := srv.AddJob(&TestJob{})
+	testJob := NewTestJob()
+
+	err := srv.AddJob(testJob)
 	assert.NoError(t, err)
 
-	jobResult, err := srv.JobResult(jobID)
+	jobState, jobResult, err := srv.JobResult(testJob.ID())
 	assert.NoError(t, err)
 
-	assert.Equal(t, mb.JobResult{Err: nil, Result: nil, State: mb.Submitted}, jobResult)
+	assert.Equal(t, mb.Submitted, jobState)
+	assert.Equal(t, mb.JobResult{JobID: testJob.ID(), Err: nil, Result: nil}, jobResult)
 }
 
 func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 
-	_, err := srv.JobResult(ulid.ULID{})
+	_, _, err := srv.JobResult("non-existing-job-id")
 	assert.Equal(t, mb.ErrJobNotFound, err)
 }
 
@@ -99,12 +104,29 @@ func TestServiceAddJobWhenShuttingDown(t *testing.T) {
 	srv := mb.NewService(&TestBP{})
 	srv.Shutdown()
 
-	_, err := srv.AddJob(&TestJob{})
+	err := srv.AddJob(NewTestJob())
 	assert.Equal(t, mb.ErrServiceClosed, err)
 }
 
 func TestServiceProcessJobs(t *testing.T) {
-	t.Skip("not implemented")
-	// Processes jobs in the queue.
-	// Calls the processor with the batch of jobs every X interval.
+	srv := mb.NewService(&TestBP{}, mb.WithBatchSize(3), mb.WithFrequency(10*time.Millisecond))
+
+	testJob := NewTestJob()
+
+	err := srv.AddJob(testJob)
+	assert.NoError(t, err)
+
+	jobState, jobResult, err := srv.JobResult(testJob.ID())
+	assert.NoError(t, err)
+
+	assert.Equal(t, mb.Submitted, jobState)
+	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: nil}, jobResult)
+
+	time.Sleep(50 * time.Millisecond)
+
+	jobState, jobResult, err = srv.JobResult(testJob.ID())
+	assert.NoError(t, err)
+
+	assert.Equal(t, mb.Completed, jobState)
+	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: "OK"}, jobResult)
 }

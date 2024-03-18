@@ -10,8 +10,15 @@ import (
 )
 
 type TestJob struct {
-	ID int
-	T  time.Time
+	id string
+}
+
+func NewTestJob() *TestJob {
+	return &TestJob{id: ulid.Make().String()}
+}
+
+func (j *TestJob) ID() string {
+	return j.id
 }
 
 func (j *TestJob) Do() JobResult {
@@ -24,12 +31,12 @@ type TestBP struct {
 	counter atomic.Uint32
 }
 
-func (bp *TestBP) Process(props ProcessProps) []JobResult {
+func (bp *TestBP) Process(jobs []Job) []JobResult {
 	bp.counter.Add(1)
 
 	// fmt.Printf("Processing batch #%d\n", bp.counter.Load())
 
-	for _, j := range props.jobs {
+	for _, j := range jobs {
 		// fmt.Printf("Processing job #%d\n", j.(*TestJob).ID)
 		j.Do()
 	}
@@ -89,22 +96,25 @@ func TestBatchRunnerDoesNotCallBatchProcessorWithoutJobs(t *testing.T) {
 
 func TestBatchRunnerJobProcessing(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	done := make(chan bool)
 	defer close(jobs)
+	defer close(jobNotifications)
 	defer close(done)
 
 	bp := &TestBP{}
 
 	br := batchRunner{
-		processor: bp,
-		batchSize: 3,
-		frequency: 10 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
+		processor:        bp,
+		batchSize:        3,
+		frequency:        10 * time.Millisecond,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             done,
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	// make sure the jobs are in the queue before starting the batch runner
@@ -117,7 +127,7 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 	assert.Equal(t, 0, len(jobs))
 
 	for i := 11; i < 22; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	time.Sleep(52 * time.Millisecond)
@@ -131,21 +141,24 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 
 func TestBatchRunnerAfterAbortSignal(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	done := make(chan bool)
 	defer close(jobs)
+	defer close(jobNotifications)
 	defer close(done)
 
 	bp := &TestBP{}
 	br := batchRunner{
-		processor: bp,
-		batchSize: 3,
-		frequency: 10 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
+		processor:        bp,
+		batchSize:        3,
+		frequency:        10 * time.Millisecond,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             done,
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	assert.Equal(t, 11, len(jobs))

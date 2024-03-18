@@ -3,24 +3,26 @@ package microbatching
 import (
 	"testing"
 
-	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBatch(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	defer close(jobs)
+	defer close(jobNotifications)
 
 	bp := &TestBP{}
 
 	b := batcher{
-		batchSize: 3,
-		jobs:      jobs,
-		p:         bp,
+		batchSize:        3,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		p:                bp,
 	}
 
 	for i := 0; i < 11; i++ {
-		jobs <- job{ID: ulid.Make(), J: &TestJob{ID: i}}
+		jobs <- job{Job: &TestJob{}}
 	}
 
 	// make sure the jobs are in the queue before calling batch

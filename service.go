@@ -4,8 +4,6 @@ import (
 	"errors"
 	"sync/atomic"
 	"time"
-
-	"github.com/oklog/ulid/v2"
 )
 
 // ErrServiceClosed is returned by the [Service.AddJob] methods after a call to [Service.Shutdown].
@@ -34,8 +32,9 @@ type Service struct {
 	processor BatchProcessor
 	pDone     chan bool
 
-	jobs       chan job
-	jobResults map[ulid.ULID]JobResult
+	jobs             chan job
+	jobNotifications chan jobNotification
+	jobResults       map[string]job
 }
 
 func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
@@ -46,24 +45,45 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	}
 
 	jobs := make(chan job, opts.queueSize)
+	jobNotifications := make(chan jobNotification, opts.queueSize)
 	pDone := make(chan bool)
+	jobResults := make(map[string]job)
 
 	br := batchRunner{
-		batchSize: opts.batchSize,
-		frequency: opts.frequency,
-		processor: processor,
-		jobs:      jobs,
-		done:      pDone,
+		batchSize:        opts.batchSize,
+		frequency:        opts.frequency,
+		processor:        processor,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             pDone,
 	}
 
 	go br.run()
 
+	go func() {
+		for jn := range jobNotifications {
+			result := jobResults[jn.JobID]
+
+			newResult := job{
+				Job:   result.Job,
+				State: jn.State,
+			}
+
+			if jn.State == Completed {
+				newResult.Result = jn.Result
+			}
+
+			jobResults[jn.JobID] = newResult
+		}
+	}()
+
 	return &Service{
-		processor:  processor,
-		opts:       opts,
-		jobs:       jobs,
-		jobResults: make(map[ulid.ULID]JobResult),
-		pDone:      pDone,
+		processor:        processor,
+		opts:             opts,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		jobResults:       jobResults,
+		pDone:            pDone,
 	}
 }
 
@@ -75,35 +95,29 @@ func (s *Service) Frequency() time.Duration {
 	return s.opts.frequency
 }
 
-// JobsQueueSize returns the number of jobs in the queue.
-func (s *Service) JobsQueueSize() int {
-	return len(s.jobs)
-}
-
 // AddJob adds a job to the queue. It returns an error if the service is closed.
-func (s *Service) AddJob(j Job) (ulid.ULID, error) {
+func (s *Service) AddJob(j Job) error {
 	if s.shuttingDown() {
-		return ulid.ULID{}, ErrServiceClosed
+		return ErrServiceClosed
 	}
 
-	jobID := ulid.Make()
-	newJob := job{ID: jobID, J: j}
+	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
 
-	s.jobResults[jobID] = JobResult{}
+	s.jobResults[j.ID()] = newJob
 	s.jobs <- newJob
 
-	return jobID, nil
+	return nil
 }
 
 // JobResult returns the result of a job. It returns an error if the job is not found.
-func (s *Service) JobResult(jobID ulid.ULID) (JobResult, error) {
+func (s *Service) JobResult(jobID string) (JobState, JobResult, error) {
 	result, ok := s.jobResults[jobID]
 
 	if !ok {
-		return JobResult{}, ErrJobNotFound
+		return Submitted, JobResult{}, ErrJobNotFound
 	}
 
-	return result, nil
+	return result.State, result.Result, nil
 }
 
 func (s *Service) shuttingDown() bool {
@@ -119,5 +133,8 @@ func (s *Service) Shutdown() {
 	s.inShutdown.Store(true)
 	s.pDone <- true
 
+	// Should wait until all jobs in the queue are processed.
+
 	close(s.jobs)
+	close(s.jobNotifications)
 }
