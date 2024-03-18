@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
@@ -16,8 +15,6 @@ type BatchProcessor interface {
 }
 
 type Runner struct {
-	sync.RWMutex
-
 	batchProcessor BatchProcessor
 	bc             <-chan []int
 	freq           time.Duration
@@ -46,12 +43,9 @@ func (r *Runner) Run() {
 				return
 			}
 
-			r.Lock()
 			r.batches = append(r.batches, batch)
-			r.Unlock()
 		case <-ticker.C:
 			fmt.Println("Ticker ...")
-			r.Lock()
 
 			for _, batch := range r.batches {
 				result := r.batchProcessor.Process(batch)
@@ -59,8 +53,6 @@ func (r *Runner) Run() {
 			}
 
 			r.batches = nil
-
-			r.Unlock()
 		}
 	}
 }
