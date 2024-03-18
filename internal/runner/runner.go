@@ -19,26 +19,26 @@ type Runner struct {
 	sync.RWMutex
 
 	batchProcessor BatchProcessor
-	bChan          <-chan []int
-	frequency      time.Duration
+	bc             <-chan []int
+	freq           time.Duration
 	batches        [][]int
 }
 
-func NewRunner(bp BatchProcessor, batches <-chan []int, freq time.Duration) *Runner {
+func NewRunner(bp BatchProcessor, bc <-chan []int, freq time.Duration) *Runner {
 	return &Runner{
 		batchProcessor: bp,
-		bChan:          batches,
-		frequency:      freq,
+		bc:             bc,
+		freq:           freq,
 		batches:        make([][]int, 0),
 	}
 }
 
-func (p *Runner) Run() {
-	ticker := time.NewTicker(p.frequency)
+func (r *Runner) Run() {
+	ticker := time.NewTicker(r.freq)
 
 	for {
 		select {
-		case batch, ok := <-p.bChan:
+		case batch, ok := <-r.bc:
 			fmt.Printf("Batch %v, %v\n", batch, ok)
 
 			if !ok {
@@ -46,21 +46,21 @@ func (p *Runner) Run() {
 				return
 			}
 
-			p.Lock()
-			p.batches = append(p.batches, batch)
-			p.Unlock()
+			r.Lock()
+			r.batches = append(r.batches, batch)
+			r.Unlock()
 		case <-ticker.C:
 			fmt.Println("Ticker ...")
-			p.Lock()
+			r.Lock()
 
-			for _, batch := range p.batches {
-				result := p.batchProcessor.Process(batch)
+			for _, batch := range r.batches {
+				result := r.batchProcessor.Process(batch)
 				fmt.Printf("Processed batch: %v\n", result)
 			}
 
-			p.batches = nil
+			r.batches = nil
 
-			p.Unlock()
+			r.Unlock()
 		}
 	}
 }
