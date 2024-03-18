@@ -49,33 +49,33 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	pDone := make(chan bool)
 	jobResults := make(map[string]job)
 
-	br := batchRunner{
-		batchSize:        opts.batchSize,
-		frequency:        opts.frequency,
-		processor:        processor,
-		jobs:             jobs,
-		jobNotifications: jobNotifications,
-		done:             pDone,
-	}
+	// br := batchRunner{
+	// 	batchSize:        opts.batchSize,
+	// 	frequency:        opts.frequency,
+	// 	processor:        processor,
+	// 	jobs:             jobs,
+	// 	jobNotifications: jobNotifications,
+	// 	done:             pDone,
+	// }
 
-	go br.run()
+	// go br.run()
 
-	go func() {
-		for jn := range jobNotifications {
-			result := jobResults[jn.JobID]
+	// go func() {
+	// 	for jn := range jobNotifications {
+	// 		result := jobResults[jn.JobID]
 
-			newResult := job{
-				Job:   result.Job,
-				State: jn.State,
-			}
+	// 		newResult := job{
+	// 			Job:   result.Job,
+	// 			State: jn.State,
+	// 		}
 
-			if jn.State == Completed {
-				newResult.Result = jn.Result
-			}
+	// 		if jn.State == Completed {
+	// 			newResult.Result = jn.Result
+	// 		}
 
-			jobResults[jn.JobID] = newResult
-		}
-	}()
+	// 		jobResults[jn.JobID] = newResult
+	// 	}
+	// }()
 
 	return &Service{
 		processor:        processor,
@@ -96,45 +96,45 @@ func (s *Service) Frequency() time.Duration {
 }
 
 // AddJob adds a job to the queue. It returns an error if the service is closed.
-func (s *Service) AddJob(j Job) error {
-	if s.shuttingDown() {
-		return ErrServiceClosed
-	}
+// func (s *Service) AddJob(j Job) error {
+// 	if s.shuttingDown() {
+// 		return ErrServiceClosed
+// 	}
 
-	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
+// 	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
 
-	s.jobResults[j.ID()] = newJob
-	s.jobs <- newJob
+// 	s.jobResults[j.ID()] = newJob
+// 	s.jobs <- newJob
 
-	return nil
-}
+// 	return nil
+// }
 
-// JobResult returns the result of a job. It returns an error if the job is not found.
-func (s *Service) JobResult(jobID string) (JobState, JobResult, error) {
-	result, ok := s.jobResults[jobID]
+// // JobResult returns the result of a job. It returns an error if the job is not found.
+// func (s *Service) JobResult(jobID string) (JobState, JobResult, error) {
+// 	result, ok := s.jobResults[jobID]
 
-	if !ok {
-		return Submitted, JobResult{}, ErrJobNotFound
-	}
+// 	if !ok {
+// 		return Submitted, JobResult{}, ErrJobNotFound
+// 	}
 
-	return result.State, result.Result, nil
-}
+// 	return result.State, result.Result, nil
+// }
 
-func (s *Service) shuttingDown() bool {
-	return s.inShutdown.Load()
-}
+// func (s *Service) shuttingDown() bool {
+// 	return s.inShutdown.Load()
+// }
 
-// Shutdown stops the service.
-func (s *Service) Shutdown() {
-	if s.shuttingDown() {
-		return
-	}
+// // Shutdown stops the service.
+// func (s *Service) Shutdown() {
+// 	if s.shuttingDown() {
+// 		return
+// 	}
 
-	s.inShutdown.Store(true)
-	s.pDone <- true
+// 	s.inShutdown.Store(true)
+// 	s.pDone <- true
 
-	// Should wait until all jobs in the queue are processed.
+// 	// Should wait until all jobs in the queue are processed.
 
-	close(s.jobs)
-	close(s.jobNotifications)
-}
+// 	close(s.jobs)
+// 	close(s.jobNotifications)
+// }

@@ -1,132 +1,123 @@
 package microbatching_test
 
-import (
-	"testing"
-	"time"
+// type TestBP struct{}
 
-	mb "github.com/antklim/micro-batching"
-	"github.com/oklog/ulid/v2"
-	"github.com/stretchr/testify/assert"
-)
+// func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
+// 	results := make([]mb.JobResult, 0, len(jobs))
 
-type TestBP struct{}
+// 	for _, j := range jobs {
+// 		results = append(results, j.Do())
+// 	}
 
-func (bp *TestBP) Process(jobs []mb.Job) []mb.JobResult {
-	results := make([]mb.JobResult, 0, len(jobs))
+// 	return results
+// }
 
-	for _, j := range jobs {
-		results = append(results, j.Do())
-	}
+// var _ mb.BatchProcessor = (*TestBP)(nil)
 
-	return results
-}
+// type TestJob struct {
+// 	id string
+// }
 
-var _ mb.BatchProcessor = (*TestBP)(nil)
+// func NewTestJob() *TestJob {
+// 	return &TestJob{id: ulid.Make().String()}
+// }
 
-type TestJob struct {
-	id string
-}
+// func (j *TestJob) ID() string {
+// 	return j.id
+// }
 
-func NewTestJob() *TestJob {
-	return &TestJob{id: ulid.Make().String()}
-}
+// func (j *TestJob) Do() mb.JobResult {
+// 	return mb.JobResult{JobID: j.id, Result: "OK"}
+// }
 
-func (j *TestJob) ID() string {
-	return j.id
-}
+// var _ mb.Job = (*TestJob)(nil)
 
-func (j *TestJob) Do() mb.JobResult {
-	return mb.JobResult{JobID: j.id, Result: "OK"}
-}
+// func TestServiceInit(t *testing.T) {
+// 	testCases := []struct {
+// 		desc              string
+// 		opts              []mb.ServiceOption
+// 		expectedBatchSize int
+// 		expectedFrequency time.Duration
+// 		expectedQueueSize int
+// 	}{
+// 		{
+// 			desc:              "inits service with default options",
+// 			expectedBatchSize: 3,
+// 			expectedFrequency: time.Second,
+// 			expectedQueueSize: 100,
+// 		},
+// 		{
+// 			desc: "inits service with custom options",
+// 			opts: []mb.ServiceOption{
+// 				mb.WithBatchSize(15),
+// 				mb.WithFrequency(5 * time.Minute),
+// 				mb.WithQueueSize(200),
+// 			},
+// 			expectedBatchSize: 15,
+// 			expectedFrequency: 5 * time.Minute,
+// 			expectedQueueSize: 200,
+// 		},
+// 	}
 
-var _ mb.Job = (*TestJob)(nil)
+// 	for _, tC := range testCases {
+// 		t.Run(tC.desc, func(t *testing.T) {
+// 			srv := mb.NewService(&TestBP{}, tC.opts...)
 
-func TestServiceInit(t *testing.T) {
-	testCases := []struct {
-		desc              string
-		opts              []mb.ServiceOption
-		expectedBatchSize int
-		expectedFrequency time.Duration
-		expectedQueueSize int
-	}{
-		{
-			desc:              "inits service with default options",
-			expectedBatchSize: 3,
-			expectedFrequency: time.Second,
-			expectedQueueSize: 100,
-		},
-		{
-			desc: "inits service with custom options",
-			opts: []mb.ServiceOption{
-				mb.WithBatchSize(15),
-				mb.WithFrequency(5 * time.Minute),
-				mb.WithQueueSize(200),
-			},
-			expectedBatchSize: 15,
-			expectedFrequency: 5 * time.Minute,
-			expectedQueueSize: 200,
-		},
-	}
+// 			assert.Equal(t, tC.expectedBatchSize, srv.BatchSize())
+// 			assert.Equal(t, tC.expectedFrequency, srv.Frequency())
+// 		})
+// 	}
+// }
 
-	for _, tC := range testCases {
-		t.Run(tC.desc, func(t *testing.T) {
-			srv := mb.NewService(&TestBP{}, tC.opts...)
+// func TestServiceJobResult(t *testing.T) {
+// 	srv := mb.NewService(&TestBP{})
 
-			assert.Equal(t, tC.expectedBatchSize, srv.BatchSize())
-			assert.Equal(t, tC.expectedFrequency, srv.Frequency())
-		})
-	}
-}
+// 	testJob := NewTestJob()
 
-func TestServiceJobResult(t *testing.T) {
-	srv := mb.NewService(&TestBP{})
+// 	err := srv.AddJob(testJob)
+// 	assert.NoError(t, err)
 
-	testJob := NewTestJob()
+// 	jobState, jobResult, err := srv.JobResult(testJob.ID())
+// 	assert.NoError(t, err)
 
-	err := srv.AddJob(testJob)
-	assert.NoError(t, err)
+// 	assert.Equal(t, mb.Submitted, jobState)
+// 	assert.Equal(t, mb.JobResult{JobID: testJob.ID(), Err: nil, Result: nil}, jobResult)
+// }
 
-	jobState, jobResult, err := srv.JobResult(testJob.ID())
-	assert.NoError(t, err)
+// func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
+// 	srv := mb.NewService(&TestBP{})
 
-	assert.Equal(t, mb.Submitted, jobState)
-	assert.Equal(t, mb.JobResult{JobID: testJob.ID(), Err: nil, Result: nil}, jobResult)
-}
+// 	_, _, err := srv.JobResult("non-existing-job-id")
+// 	assert.Equal(t, mb.ErrJobNotFound, err)
+// }
 
-func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
-	srv := mb.NewService(&TestBP{})
+// func TestServiceAddJobWhenShuttingDown(t *testing.T) {
+// 	srv := mb.NewService(&TestBP{})
+// 	srv.Shutdown()
 
-	_, _, err := srv.JobResult("non-existing-job-id")
-	assert.Equal(t, mb.ErrJobNotFound, err)
-}
+// 	err := srv.AddJob(NewTestJob())
+// 	assert.Equal(t, mb.ErrServiceClosed, err)
+// }
 
-func TestServiceAddJobWhenShuttingDown(t *testing.T) {
-	srv := mb.NewService(&TestBP{})
-	srv.Shutdown()
+// func TestServiceProcessJobs(t *testing.T) {
+// 	srv := mb.NewService(&TestBP{}, mb.WithBatchSize(3), mb.WithFrequency(10*time.Millisecond))
 
-	err := srv.AddJob(NewTestJob())
-	assert.Equal(t, mb.ErrServiceClosed, err)
-}
+// 	testJob := NewTestJob()
 
-func TestServiceProcessJobs(t *testing.T) {
-	srv := mb.NewService(&TestBP{}, mb.WithBatchSize(3), mb.WithFrequency(10*time.Millisecond))
+// 	err := srv.AddJob(testJob)
+// 	assert.NoError(t, err)
 
-	testJob := NewTestJob()
+// 	jobState, jobResult, err := srv.JobResult(testJob.ID())
+// 	assert.NoError(t, err)
 
-	err := srv.AddJob(testJob)
-	assert.NoError(t, err)
+// 	assert.Equal(t, mb.Submitted, jobState)
+// 	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: nil}, jobResult)
 
-	jobState, jobResult, err := srv.JobResult(testJob.ID())
-	assert.NoError(t, err)
+// 	time.Sleep(50 * time.Millisecond)
 
-	assert.Equal(t, mb.Submitted, jobState)
-	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: nil}, jobResult)
+// 	jobState, jobResult, err = srv.JobResult(testJob.ID())
+// 	assert.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
-
-	jobState, jobResult, err = srv.JobResult(testJob.ID())
-	assert.NoError(t, err)
-
-	assert.Equal(t, mb.Completed, jobState)
-	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: "OK"}, jobResult)
-}
+// 	assert.Equal(t, mb.Completed, jobState)
+// 	assert.Equal(t, mb.JobResult{JobID: testJob.id, Err: nil, Result: "OK"}, jobResult)
+// }

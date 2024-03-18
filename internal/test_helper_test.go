@@ -9,14 +9,17 @@ import (
 // mocks batch processor for testing purposes
 type mockBatchProcessor struct{}
 
-func (m *mockBatchProcessor) Process(jobs []mb.Job) []mb.JobResult {
-	var result []mb.JobResult
+func (m *mockBatchProcessor) Process(jobs []mb.Job) []mb.ProcessingResult {
+	var result []mb.ProcessingResult
 
 	fmt.Printf("Processing batch: %v\n", jobs)
 
 	for _, j := range jobs {
 		jr := j.Do()
-		result = append(result, mb.JobResult{JobID: jr.JobID, Err: jr.Err, Result: jr.Result})
+		result = append(result, mb.ProcessingResult{
+			JobID:     j.ID(),
+			JobResult: jr,
+		})
 	}
 
 	return result
@@ -34,7 +37,7 @@ func newMockJob(id string) *mockJob {
 }
 
 func (m *mockJob) Do() mb.JobResult {
-	return mb.JobResult{JobID: m.id, Result: "OK"}
+	return mb.JobResult{Result: "OK"}
 }
 
 func (m *mockJob) ID() string {

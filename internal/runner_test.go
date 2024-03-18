@@ -12,7 +12,7 @@ import (
 func TestRunner(t *testing.T) {
 	batches := make(chan []mb.Job)
 
-	runner := internal.NewRunner(&mockBatchProcessor{}, batches, 10*time.Millisecond)
+	runner := internal.NewRunner(&mockBatchProcessor{}, batches, nil, 10*time.Millisecond)
 
 	go func() {
 		for i := 0; i < 11; i++ {
