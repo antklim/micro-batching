@@ -2,6 +2,7 @@ package microbatching
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -32,8 +33,9 @@ type Service struct {
 	processor BatchProcessor
 	pDone     chan bool
 
-	jobs       chan job
-	jobResults map[string]job
+	jobs             chan job
+	jobNotifications chan jobNotification
+	jobResults       map[string]job
 }
 
 func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
@@ -44,24 +46,33 @@ func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
 	}
 
 	jobs := make(chan job, opts.queueSize)
+	jobNotifications := make(chan jobNotification, opts.queueSize)
 	pDone := make(chan bool)
 
 	br := batchRunner{
-		batchSize: opts.batchSize,
-		frequency: opts.frequency,
-		processor: processor,
-		jobs:      jobs,
-		done:      pDone,
+		batchSize:        opts.batchSize,
+		frequency:        opts.frequency,
+		processor:        processor,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             pDone,
 	}
 
 	go br.run()
 
+	go func() {
+		for jn := range jobNotifications {
+			fmt.Printf("Job %s is %s\n", jn.JobID, jn.State)
+		}
+	}()
+
 	return &Service{
-		processor:  processor,
-		opts:       opts,
-		jobs:       jobs,
-		jobResults: make(map[string]job),
-		pDone:      pDone,
+		processor:        processor,
+		opts:             opts,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		jobResults:       make(map[string]job),
+		pDone:            pDone,
 	}
 }
 
@@ -119,4 +130,5 @@ func (s *Service) Shutdown() {
 	// Should wait until all jobs in the queue are processed.
 
 	close(s.jobs)
+	close(s.jobNotifications)
 }

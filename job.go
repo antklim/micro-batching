@@ -28,3 +28,9 @@ type job struct {
 	State  JobState
 	Result JobResult
 }
+
+type jobNotification struct {
+	JobID  string
+	State  JobState
+	Result JobResult
+}

@@ -8,14 +8,17 @@ import (
 
 func TestBatch(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	defer close(jobs)
+	defer close(jobNotifications)
 
 	bp := &TestBP{}
 
 	b := batcher{
-		batchSize: 3,
-		jobs:      jobs,
-		p:         bp,
+		batchSize:        3,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		p:                bp,
 	}
 
 	for i := 0; i < 11; i++ {

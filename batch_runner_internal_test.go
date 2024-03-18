@@ -96,18 +96,21 @@ func TestBatchRunnerDoesNotCallBatchProcessorWithoutJobs(t *testing.T) {
 
 func TestBatchRunnerJobProcessing(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	done := make(chan bool)
 	defer close(jobs)
+	defer close(jobNotifications)
 	defer close(done)
 
 	bp := &TestBP{}
 
 	br := batchRunner{
-		processor: bp,
-		batchSize: 3,
-		frequency: 10 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
+		processor:        bp,
+		batchSize:        3,
+		frequency:        10 * time.Millisecond,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             done,
 	}
 
 	for i := 0; i < 11; i++ {
@@ -138,17 +141,20 @@ func TestBatchRunnerJobProcessing(t *testing.T) {
 
 func TestBatchRunnerAfterAbortSignal(t *testing.T) {
 	jobs := make(chan job, 100)
+	jobNotifications := make(chan jobNotification, 100)
 	done := make(chan bool)
 	defer close(jobs)
+	defer close(jobNotifications)
 	defer close(done)
 
 	bp := &TestBP{}
 	br := batchRunner{
-		processor: bp,
-		batchSize: 3,
-		frequency: 10 * time.Millisecond,
-		jobs:      jobs,
-		done:      done,
+		processor:        bp,
+		batchSize:        3,
+		frequency:        10 * time.Millisecond,
+		jobs:             jobs,
+		jobNotifications: jobNotifications,
+		done:             done,
 	}
 
 	for i := 0; i < 11; i++ {
