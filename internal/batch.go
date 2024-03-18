@@ -1,20 +1,21 @@
 package internal
 
-func Batch[V any](batchSize int, values <-chan V, batches chan<- []V) {
+// Batch takes values from an 'in' channel and sends them in batches to an 'out' channel.
+func Batch[V any](batchSize int, in <-chan V, out chan<- []V) {
 	var batch []V
 
-	for v := range values {
+	for v := range in {
 		batch = append(batch, v)
 
 		if len(batch) == batchSize {
-			batches <- batch
+			out <- batch
 			batch = nil
 		}
 	}
 
 	if len(batch) > 0 {
-		batches <- batch
+		out <- batch
 	}
 
-	close(batches)
+	close(out)
 }
