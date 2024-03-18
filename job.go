@@ -23,6 +23,12 @@ type JobResult struct {
 	Result interface{}
 }
 
+type JobNotification struct {
+	JobID  string
+	State  JobState
+	Result *JobResult
+}
+
 type job struct {
 	Job    Job
 	State  JobState
