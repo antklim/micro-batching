@@ -1,4 +1,4 @@
-package processor
+package runner
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ type BatchProcessor interface {
 	Process(jobs []int) []ProcessResult
 }
 
-type Processor struct {
+type Runner struct {
 	sync.RWMutex
 
 	batchProcessor BatchProcessor
@@ -24,8 +24,8 @@ type Processor struct {
 	batches        [][]int
 }
 
-func NewProcessor(bp BatchProcessor, batches <-chan []int, freq time.Duration) *Processor {
-	return &Processor{
+func NewRunner(bp BatchProcessor, batches <-chan []int, freq time.Duration) *Runner {
+	return &Runner{
 		batchProcessor: bp,
 		bChan:          batches,
 		frequency:      freq,
@@ -33,7 +33,7 @@ func NewProcessor(bp BatchProcessor, batches <-chan []int, freq time.Duration) *
 	}
 }
 
-func (p *Processor) Start() {
+func (p *Runner) Run() {
 	ticker := time.NewTicker(p.frequency)
 
 	for {

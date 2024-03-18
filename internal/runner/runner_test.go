@@ -1,11 +1,11 @@
-package processor_test
+package runner_test
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
-	mb "github.com/antklim/micro-batching/internal/processor"
+	mb "github.com/antklim/micro-batching/internal/runner"
 )
 
 type mockBatchProcessor struct{}
@@ -24,10 +24,10 @@ func (m *mockBatchProcessor) Process(jobs []int) []mb.ProcessResult {
 
 var _ mb.BatchProcessor = (*mockBatchProcessor)(nil)
 
-func TestProcessorABC(t *testing.T) {
+func TestRunner(t *testing.T) {
 	batches := make(chan []int)
 
-	processor := mb.NewProcessor(&mockBatchProcessor{}, batches, 10*time.Millisecond)
+	runner := mb.NewRunner(&mockBatchProcessor{}, batches, 10*time.Millisecond)
 
 	go func() {
 		for i := 0; i < 11; i++ {
@@ -45,7 +45,7 @@ func TestProcessorABC(t *testing.T) {
 		close(batches)
 	}()
 
-	go processor.Start()
+	go runner.Run()
 
 	time.Sleep(200 * time.Millisecond)
 }
