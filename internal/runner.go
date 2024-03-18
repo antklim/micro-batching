@@ -3,30 +3,23 @@ package internal
 import (
 	"fmt"
 	"time"
+
+	mb "github.com/antklim/micro-batching"
 )
 
-type ProcessResult struct {
-	ID     int
-	Result int
-}
-
-type BatchProcessor interface {
-	Process(jobs []int) []ProcessResult
-}
-
 type Runner struct {
-	batchProcessor BatchProcessor
-	bc             <-chan []int
+	batchProcessor mb.BatchProcessor
+	bc             <-chan []mb.Job
 	freq           time.Duration
-	batches        [][]int
+	batches        [][]mb.Job
 }
 
-func NewRunner(bp BatchProcessor, bc <-chan []int, freq time.Duration) *Runner {
+func NewRunner(bp mb.BatchProcessor, bc <-chan []mb.Job, freq time.Duration) *Runner {
 	return &Runner{
 		batchProcessor: bp,
 		bc:             bc,
 		freq:           freq,
-		batches:        make([][]int, 0),
+		batches:        make([][]mb.Job, 0),
 	}
 }
 
@@ -36,8 +29,6 @@ func (r *Runner) Run() {
 	for {
 		select {
 		case batch, ok := <-r.bc:
-			fmt.Printf("Batch %v, %v\n", batch, ok)
-
 			if !ok {
 				ticker.Stop()
 				return
@@ -45,8 +36,6 @@ func (r *Runner) Run() {
 
 			r.batches = append(r.batches, batch)
 		case <-ticker.C:
-			fmt.Println("Ticker ...")
-
 			for _, batch := range r.batches {
 				result := r.batchProcessor.Process(batch)
 				fmt.Printf("Processed batch: %v\n", result)
