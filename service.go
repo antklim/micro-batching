@@ -2,7 +2,8 @@ package microbatching
 
 import (
 	"errors"
-	"fmt"
+	"log"
+	"os"
 	"sync/atomic"
 	"time"
 )
@@ -13,11 +14,18 @@ var ErrServiceClosed = errors.New("microbatching: Service closed")
 // ErrJobNotFound is returned by the [Service.JobResult] method when the job is not found.
 var ErrJobNotFound = errors.New("microbatching: Job not found")
 
+type Logger interface {
+	Print(...interface{})
+	Printf(format string, v ...any)
+	Println(...interface{})
+}
+
 type serviceOptions struct {
 	batchSize       int
 	frequency       time.Duration
 	queueSize       int
 	shutdownTimeout time.Duration
+	logger          Logger
 }
 
 var defaultOptions = serviceOptions{
@@ -25,6 +33,7 @@ var defaultOptions = serviceOptions{
 	frequency:       time.Second,
 	queueSize:       100,
 	shutdownTimeout: 5 * time.Second,
+	logger:          log.New(os.Stderr, "microbatching: ", log.Lmsgprefix),
 }
 
 // Service is a micro-batching service that processes jobs in batches.
@@ -125,13 +134,12 @@ func (s *Service) Shutdown() {
 
 	close(s.jobs)
 
-	// TODO: replace fmt.Println with the logger
 	select {
 	case <-s.done:
-		fmt.Println("microbatching: closed")
+		s.opts.logger.Println("closed")
 		break
 	case <-time.After(s.opts.shutdownTimeout):
-		fmt.Println("microbatching: closed by timeout")
+		s.opts.logger.Println("closed by timeout")
 		break
 	}
 

@@ -46,3 +46,10 @@ func WithShutdownTimeout(v time.Duration) ServiceOption {
 		o.shutdownTimeout = v
 	})
 }
+
+// WithLogger returns a ServiceOption that sets service logger.
+func WithLogger(v Logger) ServiceOption {
+	return newFuncOption(func(o *serviceOptions) {
+		o.logger = v
+	})
+}
