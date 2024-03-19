@@ -25,13 +25,8 @@ func batchSender(bc chan<- []mb.Job, testBatches [][]mb.Job) {
 }
 
 func TestRunner(t *testing.T) {
-	shutdown := make(chan bool)
 	bc := make(chan []mb.Job)
 	nc := make(chan mb.JobExtendedResult)
-
-	defer close(shutdown)
-	defer close(bc)
-	defer close(nc)
 
 	jobsSize := 22
 	batchSize := 3
@@ -40,7 +35,7 @@ func TestRunner(t *testing.T) {
 	testBatches := makeMockBatches(testJobs, batchSize)
 	notifications := make([]mb.JobExtendedResult, 0)
 
-	runner := mb.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond, shutdown)
+	runner := mb.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond)
 
 	go batchSender(bc, testBatches)
 	go func() {
@@ -52,7 +47,7 @@ func TestRunner(t *testing.T) {
 
 	time.Sleep(150 * time.Millisecond)
 
-	shutdown <- true
+	close(bc)
 
 	// should receive notifications for all jobs
 	assert.Equal(t, jobsSize*2, len(notifications))

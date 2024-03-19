@@ -24,6 +24,8 @@ func Batch[V any](
 
 			ticker.Stop()
 
+			close(out)
+
 			return
 		case v := <-in:
 			batch = append(batch, v)

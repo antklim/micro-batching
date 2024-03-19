@@ -23,7 +23,7 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 		// wait for the batches to be processed
 		time.Sleep(50 * time.Millisecond)
 		close(jobs)
-		close(batches)
+		// close(batches)
 	}()
 
 	go mb.Batch(3, jobs, batches, 10*time.Millisecond, shutdown)
@@ -56,7 +56,7 @@ func TestBatchSendsBatchesByTimer(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 
 		close(jobs)
-		close(batches)
+		// close(batches)
 
 	}()
 

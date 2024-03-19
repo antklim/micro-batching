@@ -12,7 +12,6 @@ type Runner struct {
 	nc             chan<- JobExtendedResult
 	freq           time.Duration
 	queue          [][]Job
-	shutdown       <-chan bool
 }
 
 func NewRunner(
@@ -20,7 +19,6 @@ func NewRunner(
 	bc <-chan []Job,
 	nc chan<- JobExtendedResult,
 	freq time.Duration,
-	shutdown <-chan bool,
 ) *Runner {
 	return &Runner{
 		batchProcessor: bp,
@@ -28,7 +26,6 @@ func NewRunner(
 		nc:             nc,
 		freq:           freq,
 		queue:          make([][]Job, 0),
-		shutdown:       shutdown,
 	}
 }
 
@@ -37,20 +34,24 @@ func (r *Runner) Run() {
 
 	for {
 		select {
-		case <-r.shutdown:
-			ticker.Stop()
-
-			for _, batch := range r.queue {
-				r.notifyProcessing(batch)
-				result := r.batchProcessor.Process(batch)
-				r.notifyCompleted(result)
-			}
-
-			r.queue = nil
-
-			return
-		case batch := <-r.bc:
+		case batch, ok := <-r.bc:
 			r.queue = append(r.queue, batch)
+
+			if !ok {
+				ticker.Stop()
+
+				for _, batch := range r.queue {
+					r.notifyProcessing(batch)
+					result := r.batchProcessor.Process(batch)
+					r.notifyCompleted(result)
+				}
+
+				r.queue = nil
+
+				close(r.nc)
+
+				return
+			}
 		case <-ticker.C:
 			for _, batch := range r.queue {
 				r.notifyProcessing(batch)
