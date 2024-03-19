@@ -85,14 +85,6 @@ func (s *Service) Run(bp BatchProcessor) {
 	}()
 }
 
-func (s *Service) BatchSize() int {
-	return s.opts.batchSize
-}
-
-func (s *Service) Frequency() time.Duration {
-	return s.opts.frequency
-}
-
 // AddJob adds a job to the queue. It returns an error if the service is closed.
 func (s *Service) AddJob(j Job) error {
 	if s.shuttingDown() {

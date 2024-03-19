@@ -22,12 +22,13 @@ func ExampleService() {
 
 	for _, j := range testJobs {
 		r, err := srv.JobResult(j.ID())
+
 		if err != nil {
 			fmt.Println(err)
-			continue
+		} else {
+			fmt.Printf("Job ID: %s, State: %s\n", r.JobID, r.State)
 		}
 
-		fmt.Printf("Job ID: %s, State: %s\n", r.JobID, r.State)
 	}
 
 	srv.Shutdown()

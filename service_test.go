@@ -11,15 +11,11 @@ import (
 
 func TestServiceInit(t *testing.T) {
 	testCases := []struct {
-		desc              string
-		opts              []mb.ServiceOption
-		expectedBatchSize int
-		expectedFrequency time.Duration
+		desc string
+		opts []mb.ServiceOption
 	}{
 		{
-			desc:              "inits service with default options",
-			expectedBatchSize: 3,
-			expectedFrequency: time.Second,
+			desc: "inits service with default options",
 		},
 		{
 			desc: "inits service with custom options",
@@ -28,8 +24,6 @@ func TestServiceInit(t *testing.T) {
 				mb.WithFrequency(5 * time.Minute),
 				mb.WithQueueSize(200),
 			},
-			expectedBatchSize: 15,
-			expectedFrequency: 5 * time.Minute,
 		},
 	}
 
@@ -37,8 +31,7 @@ func TestServiceInit(t *testing.T) {
 		t.Run(tC.desc, func(t *testing.T) {
 			srv := mb.NewService(tC.opts...)
 
-			assert.Equal(t, tC.expectedBatchSize, srv.BatchSize())
-			assert.Equal(t, tC.expectedFrequency, srv.Frequency())
+			assert.NotEmpty(t, srv)
 		})
 	}
 }
