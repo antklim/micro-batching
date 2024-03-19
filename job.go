@@ -27,15 +27,3 @@ type JobNotification struct {
 	State JobState
 	JobResult
 }
-
-type job struct {
-	Job    Job
-	State  JobState
-	Result JobResult
-}
-
-type jobNotification struct {
-	JobID  string
-	State  JobState
-	Result JobResult
-}

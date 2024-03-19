@@ -29,62 +29,28 @@ type Service struct {
 	opts       serviceOptions
 	inShutdown atomic.Bool
 
-	processor BatchProcessor
-	pDone     chan bool
-
-	jobs             chan job
-	jobNotifications chan jobNotification
-	jobResults       map[string]job
+	jobs          chan Job
+	batches       chan []Job
+	notifications chan JobNotification
 }
 
-func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
+func NewService(opt ...ServiceOption) *Service {
 	opts := defaultOptions
 
 	for _, o := range opt {
 		o.apply(&opts)
 	}
 
-	jobs := make(chan job, opts.queueSize)
-	jobNotifications := make(chan jobNotification, opts.queueSize)
-	pDone := make(chan bool)
-	jobResults := make(map[string]job)
-
-	// br := batchRunner{
-	// 	batchSize:        opts.batchSize,
-	// 	frequency:        opts.frequency,
-	// 	processor:        processor,
-	// 	jobs:             jobs,
-	// 	jobNotifications: jobNotifications,
-	// 	done:             pDone,
-	// }
-
-	// go br.run()
-
-	// go func() {
-	// 	for jn := range jobNotifications {
-	// 		result := jobResults[jn.JobID]
-
-	// 		newResult := job{
-	// 			Job:   result.Job,
-	// 			State: jn.State,
-	// 		}
-
-	// 		if jn.State == Completed {
-	// 			newResult.Result = jn.Result
-	// 		}
-
-	// 		jobResults[jn.JobID] = newResult
-	// 	}
-	// }()
-
 	return &Service{
-		processor:        processor,
-		opts:             opts,
-		jobs:             jobs,
-		jobNotifications: jobNotifications,
-		jobResults:       jobResults,
-		pDone:            pDone,
+		opts:          opts,
+		jobs:          make(chan Job),
+		batches:       make(chan []Job),
+		notifications: make(chan JobNotification),
 	}
+}
+
+func (s *Service) Run() {
+	// go internal.Batch(s.opts.batchSize, s.jobs, s.batches)
 }
 
 func (s *Service) BatchSize() int {
@@ -120,21 +86,15 @@ func (s *Service) Frequency() time.Duration {
 // 	return result.State, result.Result, nil
 // }
 
-// func (s *Service) shuttingDown() bool {
-// 	return s.inShutdown.Load()
-// }
+func (s *Service) shuttingDown() bool {
+	return s.inShutdown.Load()
+}
 
-// // Shutdown stops the service.
-// func (s *Service) Shutdown() {
-// 	if s.shuttingDown() {
-// 		return
-// 	}
+// Shutdown stops the service.
+func (s *Service) Shutdown() {
+	if s.shuttingDown() {
+		return
+	}
 
-// 	s.inShutdown.Store(true)
-// 	s.pDone <- true
-
-// 	// Should wait until all jobs in the queue are processed.
-
-// 	close(s.jobs)
-// 	close(s.jobNotifications)
-// }
+	s.inShutdown.Store(true)
+}
