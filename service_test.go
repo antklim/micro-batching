@@ -66,13 +66,13 @@ func TestServiceJobResult(t *testing.T) {
 		jobResult,
 	)
 
-	// // wait for the job to be processed
-	// time.Sleep(50 * time.Millisecond)
+	// wait for the job to be processed
+	time.Sleep(50 * time.Millisecond)
 
-	// jobResult, err = srv.JobResult(testJobID)
-	// assert.NoError(t, err)
+	jobResult, err = srv.JobResult(testJobID)
+	assert.NoError(t, err)
 
-	// assert.Equal(t, mb.Completed, jobResult.State)
+	assert.Equal(t, mb.Completed, jobResult.State)
 }
 
 func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {

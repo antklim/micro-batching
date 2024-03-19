@@ -61,7 +61,7 @@ func (s *Service) Run(bp BatchProcessor) {
 	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency)
 
 	// group jobs into batches
-	go Batch(s.opts.batchSize, s.jobs, s.batches)
+	go Batch(s.opts.batchSize, s.jobs, s.batches, s.opts.frequency)
 
 	// runs batches
 	go runner.Run()
