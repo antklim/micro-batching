@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"time"
 
 	mb "github.com/antklim/micro-batching"
@@ -42,7 +41,7 @@ func (r *Runner) Run() {
 		case <-ticker.C:
 			for _, batch := range r.queue {
 				result := r.batchProcessor.Process(batch)
-				fmt.Printf("Processed batch: %v\n", result)
+				r.notify(result)
 			}
 
 			r.queue = nil

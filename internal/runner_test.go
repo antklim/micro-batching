@@ -1,71 +1,61 @@
 package internal_test
 
 import (
-	"strconv"
 	"testing"
 	"time"
 
 	mb "github.com/antklim/micro-batching"
 	internal "github.com/antklim/micro-batching/internal"
+	"github.com/stretchr/testify/assert"
 )
 
-func makeMockJobs(n int) []mb.Job {
-	var jobs []mb.Job
-
-	for i := 0; i < n; i++ {
-		jobs = append(jobs, newMockJob(strconv.Itoa(i)))
+func batchSender(bc chan<- []mb.Job, testBatches [][]mb.Job) {
+	// send first part of the batches
+	for i := 0; i < 4; i++ {
+		bc <- testBatches[i]
 	}
 
-	return jobs
-}
+	time.Sleep(50 * time.Millisecond)
 
-func makeMockBatches(jobs []mb.Job, batchSize int) [][]mb.Job {
-	var batches [][]mb.Job
-	var batch []mb.Job
-
-	for i, job := range jobs {
-		batch = append(batch, job)
-
-		if (i+1)%batchSize == 0 {
-			batches = append(batches, batch)
-			batch = nil
-		}
+	// send the remaining batches
+	for i := 4; i < len(testBatches); i++ {
+		bc <- testBatches[i]
 	}
 
-	if len(batch) > 0 {
-		batches = append(batches, batch)
-	}
+	time.Sleep(50 * time.Millisecond)
 
-	return batches
+	close(bc)
 }
 
 func TestRunner(t *testing.T) {
-	batches := make(chan []mb.Job)
+	bc := make(chan []mb.Job)
+	nc := make(chan mb.JobNotification)
 
-	runner := internal.NewRunner(&mockBatchProcessor{}, batches, nil, 10*time.Millisecond)
+	jobsSize := 22
+	batchSize := 3
 
-	testJobs := makeMockJobs(22)
-	testBatches := makeMockBatches(testJobs, 3)
+	testJobs := makeMockJobs(jobsSize)
+	testBatches := makeMockBatches(testJobs, batchSize)
+	notifications := make([]mb.JobNotification, 0)
 
+	runner := internal.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond)
+
+	go batchSender(bc, testBatches)
 	go func() {
-		// send first part of the batches
-		for i := 0; i < 4; i++ {
-			batches <- testBatches[i]
+		for n := range nc {
+			notifications = append(notifications, n)
 		}
-
-		time.Sleep(50 * time.Millisecond)
-
-		// send the remaining batches
-		for i := 4; i < len(testBatches); i++ {
-			batches <- testBatches[i]
-		}
-
-		time.Sleep(50 * time.Millisecond)
-
-		close(batches)
 	}()
-
 	go runner.Run()
 
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(150 * time.Millisecond)
+
+	close(nc)
+
+	// should receive notifications for all jobs
+	assert.Equal(t, jobsSize, len(notifications))
+
+	for _, n := range notifications {
+		assert.Equal(t, mb.Completed, n.State)
+	}
 }
