@@ -1,4 +1,4 @@
-package internal_test
+package microbatching_test
 
 import (
 	"strconv"

@@ -1,11 +1,10 @@
-package internal_test
+package microbatching_test
 
 import (
 	"testing"
 	"time"
 
 	mb "github.com/antklim/micro-batching"
-	internal "github.com/antklim/micro-batching/internal"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,7 +37,7 @@ func TestRunner(t *testing.T) {
 	testBatches := makeMockBatches(testJobs, batchSize)
 	notifications := make([]mb.JobNotification, 0)
 
-	runner := internal.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond)
+	runner := mb.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond)
 
 	go batchSender(bc, testBatches)
 	go func() {

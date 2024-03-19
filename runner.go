@@ -1,28 +1,26 @@
-package internal
+package microbatching
 
 import (
 	"time"
-
-	mb "github.com/antklim/micro-batching"
 )
 
 // Runner is a micro-batching runner. It reads batches from the channel and stores them into a queue.
 // It processes the queue in a batch when the ticker ticks.
 type Runner struct {
-	batchProcessor mb.BatchProcessor
-	bc             <-chan []mb.Job
-	nc             chan<- mb.JobNotification
+	batchProcessor BatchProcessor
+	bc             <-chan []Job
+	nc             chan<- JobNotification
 	freq           time.Duration
-	queue          [][]mb.Job
+	queue          [][]Job
 }
 
-func NewRunner(bp mb.BatchProcessor, bc <-chan []mb.Job, nc chan<- mb.JobNotification, freq time.Duration) *Runner {
+func NewRunner(bp BatchProcessor, bc <-chan []Job, nc chan<- JobNotification, freq time.Duration) *Runner {
 	return &Runner{
 		batchProcessor: bp,
 		bc:             bc,
 		nc:             nc,
 		freq:           freq,
-		queue:          make([][]mb.Job, 0),
+		queue:          make([][]Job, 0),
 	}
 }
 
@@ -49,11 +47,11 @@ func (r *Runner) Run() {
 	}
 }
 
-func (r *Runner) notify(results []mb.ProcessingResult) {
+func (r *Runner) notify(results []ProcessingResult) {
 	for _, result := range results {
-		r.nc <- mb.JobNotification{
+		r.nc <- JobNotification{
 			JobID:     result.JobID,
-			State:     mb.Completed,
+			State:     Completed,
 			JobResult: result.JobResult,
 		}
 	}
