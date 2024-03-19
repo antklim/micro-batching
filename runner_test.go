@@ -31,6 +31,7 @@ func TestRunner(t *testing.T) {
 
 	defer close(shutdown)
 	defer close(bc)
+	defer close(nc)
 
 	jobsSize := 22
 	batchSize := 3

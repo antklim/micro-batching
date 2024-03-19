@@ -2,7 +2,6 @@ package microbatching
 
 import (
 	"errors"
-	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -36,7 +35,6 @@ type Service struct {
 	batches       chan []Job
 	notifications chan JobExtendedResult
 	shutdown      chan bool
-	done          chan bool
 
 	jobResults map[string]JobExtendedResult
 }
@@ -54,7 +52,6 @@ func NewService(opt ...ServiceOption) *Service {
 		batches:       make(chan []Job),
 		notifications: make(chan JobExtendedResult),
 		shutdown:      make(chan bool),
-		done:          make(chan bool),
 		jobResults:    make(map[string]JobExtendedResult),
 	}
 }
@@ -73,8 +70,6 @@ func (s *Service) Run(bp BatchProcessor) {
 		for n := range s.notifications {
 			s.jobResults[n.JobID] = n
 		}
-
-		s.done <- true
 	}()
 }
 
@@ -92,11 +87,12 @@ func (s *Service) AddJob(j Job) error {
 		return ErrServiceClosed
 	}
 
+	s.jobs <- j
+
 	s.jobResults[j.ID()] = JobExtendedResult{
 		JobID: j.ID(),
 		State: Submitted,
 	}
-	s.jobs <- j
 
 	return nil
 }
@@ -125,17 +121,10 @@ func (s *Service) Shutdown() {
 	s.inShutdown.Store(true)
 	s.shutdown <- true
 
-	select {
-	case <-s.done:
-		break
-	case <-time.After(s.opts.shutdownTimeout):
-		fmt.Println("microbatching: service shutdown timeout")
-		break
-	}
+	time.Sleep(s.opts.shutdownTimeout)
 
 	// close(s.jobs)
 	// close(s.batches)
 	// close(s.notifications)
-	// close(s.done)
 	// close(s.shutdown)
 }
