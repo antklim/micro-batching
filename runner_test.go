@@ -52,9 +52,9 @@ func TestRunner(t *testing.T) {
 	close(nc)
 
 	// should receive notifications for all jobs
-	assert.Equal(t, jobsSize, len(notifications))
+	assert.Equal(t, jobsSize*2, len(notifications))
 
 	for _, n := range notifications {
-		assert.Equal(t, mb.Completed, n.State)
+		assert.True(t, n.State == mb.Processing || n.State == mb.Completed)
 	}
 }
