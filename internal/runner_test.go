@@ -48,13 +48,15 @@ func TestRunner(t *testing.T) {
 	testBatches := makeMockBatches(testJobs, 3)
 
 	go func() {
+		// send first part of the batches
 		for i := 0; i < 4; i++ {
 			batches <- testBatches[i]
 		}
 
 		time.Sleep(50 * time.Millisecond)
 
-		for i := 4; i < 8; i++ {
+		// send the remaining batches
+		for i := 4; i < len(testBatches); i++ {
 			batches <- testBatches[i]
 		}
 
