@@ -32,10 +32,10 @@ type Service struct {
 
 	jobs          chan Job
 	batches       chan []Job
-	notifications chan JobNotification
+	notifications chan JobExtendedResult
 	done          chan bool
 
-	jobResults map[string]JobNotification
+	jobResults map[string]JobExtendedResult
 }
 
 func NewService(opt ...ServiceOption) *Service {
@@ -49,9 +49,9 @@ func NewService(opt ...ServiceOption) *Service {
 		opts:          opts,
 		jobs:          make(chan Job),
 		batches:       make(chan []Job),
-		notifications: make(chan JobNotification),
+		notifications: make(chan JobExtendedResult),
 		done:          make(chan bool),
-		jobResults:    make(map[string]JobNotification),
+		jobResults:    make(map[string]JobExtendedResult),
 	}
 }
 
@@ -88,7 +88,7 @@ func (s *Service) AddJob(j Job) error {
 		return ErrServiceClosed
 	}
 
-	s.jobResults[j.ID()] = JobNotification{
+	s.jobResults[j.ID()] = JobExtendedResult{
 		JobID: j.ID(),
 		State: Submitted,
 	}
@@ -98,11 +98,11 @@ func (s *Service) AddJob(j Job) error {
 }
 
 // JobResult returns the result of a job. It returns an error if the job is not found.
-func (s *Service) JobResult(jobID string) (JobNotification, error) {
+func (s *Service) JobResult(jobID string) (JobExtendedResult, error) {
 	result, ok := s.jobResults[jobID]
 
 	if !ok {
-		return JobNotification{}, ErrJobNotFound
+		return JobExtendedResult{}, ErrJobNotFound
 	}
 
 	return result, nil

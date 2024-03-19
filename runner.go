@@ -9,12 +9,12 @@ import (
 type Runner struct {
 	batchProcessor BatchProcessor
 	bc             <-chan []Job
-	nc             chan<- JobNotification
+	nc             chan<- JobExtendedResult
 	freq           time.Duration
 	queue          [][]Job
 }
 
-func NewRunner(bp BatchProcessor, bc <-chan []Job, nc chan<- JobNotification, freq time.Duration) *Runner {
+func NewRunner(bp BatchProcessor, bc <-chan []Job, nc chan<- JobExtendedResult, freq time.Duration) *Runner {
 	return &Runner{
 		batchProcessor: bp,
 		bc:             bc,
@@ -49,7 +49,7 @@ func (r *Runner) Run() {
 
 func (r *Runner) notify(results []ProcessingResult) {
 	for _, result := range results {
-		r.nc <- JobNotification{
+		r.nc <- JobExtendedResult{
 			JobID:     result.JobID,
 			State:     Completed,
 			JobResult: result.JobResult,

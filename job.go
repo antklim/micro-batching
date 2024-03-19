@@ -22,7 +22,7 @@ type Job interface {
 	Do() JobResult
 }
 
-type JobNotification struct {
+type JobExtendedResult struct {
 	JobID string
 	State JobState
 	JobResult

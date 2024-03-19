@@ -28,14 +28,14 @@ func batchSender(bc chan<- []mb.Job, testBatches [][]mb.Job) {
 
 func TestRunner(t *testing.T) {
 	bc := make(chan []mb.Job)
-	nc := make(chan mb.JobNotification)
+	nc := make(chan mb.JobExtendedResult)
 
 	jobsSize := 22
 	batchSize := 3
 
 	testJobs := makeMockJobs(jobsSize)
 	testBatches := makeMockBatches(testJobs, batchSize)
-	notifications := make([]mb.JobNotification, 0)
+	notifications := make([]mb.JobExtendedResult, 0)
 
 	runner := mb.NewRunner(&mockBatchProcessor{}, bc, nc, 10*time.Millisecond)
 
