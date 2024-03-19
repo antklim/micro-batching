@@ -48,6 +48,8 @@ func (r *Runner) Run() {
 
 			r.queue = nil
 
+			close(r.nc)
+
 			return
 		case batch := <-r.bc:
 			r.queue = append(r.queue, batch)

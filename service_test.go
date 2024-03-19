@@ -1,6 +1,7 @@
 package microbatching_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -91,20 +92,20 @@ func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
 // 	assert.Equal(t, mb.ErrServiceClosed, err)
 // }
 
-// func TestShutdownWaitsForJobsToBeDone(t *testing.T) {
-// 	srv := mb.NewService(mb.WithFrequency(10 * time.Millisecond))
-// 	srv.Run(&mockBatchProcessor{})
+func TestShutdownWaitsForJobsToBeDone(t *testing.T) {
+	srv := mb.NewService(mb.WithFrequency(10 * time.Millisecond))
+	srv.Run(&mockBatchProcessor{})
 
-// 	for i := 0; i < 10; i++ {
-// 		err := srv.AddJob(newMockJob(fmt.Sprintf("test-job-id-%d", i)))
-// 		assert.NoError(t, err)
-// 	}
+	for i := 0; i < 10; i++ {
+		err := srv.AddJob(newMockJob(fmt.Sprintf("test-job-id-%d", i)))
+		assert.NoError(t, err)
+	}
 
-// 	srv.Shutdown()
+	srv.Shutdown()
 
-// 	for i := 0; i < 10; i++ {
-// 		result, err := srv.JobResult(fmt.Sprintf("test-job-id-%d", i))
-// 		assert.NoError(t, err)
-// 		assert.Equal(t, mb.Completed, result.State)
-// 	}
-// }
+	for i := 0; i < 10; i++ {
+		result, err := srv.JobResult(fmt.Sprintf("test-job-id-%d", i))
+		assert.NoError(t, err)
+		assert.Equal(t, mb.Completed, result.State)
+	}
+}

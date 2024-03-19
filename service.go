@@ -133,9 +133,9 @@ func (s *Service) Shutdown() {
 		break
 	}
 
-	close(s.jobs)
-	close(s.batches)
-	close(s.notifications)
-	close(s.done)
-	close(s.shutdown)
+	// close(s.jobs)
+	// close(s.batches)
+	// close(s.notifications)
+	// close(s.done)
+	// close(s.shutdown)
 }
