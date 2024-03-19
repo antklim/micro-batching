@@ -85,8 +85,27 @@ func TestServiceJobResultWhenJobIsNotFound(t *testing.T) {
 
 func TestServiceAddJobWhenShuttingDown(t *testing.T) {
 	srv := mb.NewService(mb.WithShutdownTimeout(10 * time.Millisecond))
+	srv.Run(&mockBatchProcessor{})
 	srv.Shutdown()
 
 	err := srv.AddJob(newMockJob("test-job-id"))
 	assert.Equal(t, mb.ErrServiceClosed, err)
 }
+
+// func TestShutdownWaitsForJobsToBeDone(t *testing.T) {
+// 	srv := mb.NewService(mb.WithFrequency(10 * time.Millisecond))
+// 	srv.Run(&mockBatchProcessor{})
+
+// 	for i := 0; i < 10; i++ {
+// 		err := srv.AddJob(newMockJob(fmt.Sprintf("test-job-id-%d", i)))
+// 		assert.NoError(t, err)
+// 	}
+
+// 	srv.Shutdown()
+
+// 	for i := 0; i < 10; i++ {
+// 		result, err := srv.JobResult(fmt.Sprintf("test-job-id-%d", i))
+// 		assert.NoError(t, err)
+// 		assert.Equal(t, mb.Completed, result.State)
+// 	}
+// }

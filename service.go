@@ -2,7 +2,6 @@ package microbatching
 
 import (
 	"errors"
-	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -35,7 +34,7 @@ type Service struct {
 	jobs          chan Job
 	batches       chan []Job
 	notifications chan JobExtendedResult
-	done          chan bool
+	shutdown      chan bool
 
 	jobResults map[string]JobExtendedResult
 }
@@ -52,16 +51,16 @@ func NewService(opt ...ServiceOption) *Service {
 		jobs:          make(chan Job),
 		batches:       make(chan []Job),
 		notifications: make(chan JobExtendedResult),
-		done:          make(chan bool),
+		shutdown:      make(chan bool),
 		jobResults:    make(map[string]JobExtendedResult),
 	}
 }
 
 func (s *Service) Run(bp BatchProcessor) {
-	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency)
+	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency, s.shutdown)
 
 	// group jobs into batches
-	go Batch(s.opts.batchSize, s.jobs, s.batches, s.opts.frequency)
+	go Batch(s.opts.batchSize, s.jobs, s.batches, s.opts.frequency, s.shutdown)
 
 	// runs batches
 	go runner.Run()
@@ -71,8 +70,6 @@ func (s *Service) Run(bp BatchProcessor) {
 		for n := range s.notifications {
 			s.jobResults[n.JobID] = n
 		}
-
-		s.done <- true
 	}()
 }
 
@@ -90,11 +87,12 @@ func (s *Service) AddJob(j Job) error {
 		return ErrServiceClosed
 	}
 
+	s.jobs <- j
+
 	s.jobResults[j.ID()] = JobExtendedResult{
 		JobID: j.ID(),
 		State: Submitted,
 	}
-	s.jobs <- j
 
 	return nil
 }
@@ -121,15 +119,12 @@ func (s *Service) Shutdown() {
 	}
 
 	s.inShutdown.Store(true)
-	close(s.jobs)
-	close(s.batches)
-	close(s.notifications)
+	s.shutdown <- true
 
-	select {
-	case <-s.done:
-		return
-	case <-time.After(s.opts.shutdownTimeout):
-		fmt.Println("microbatching: service shutdown timeout")
-		return
-	}
+	time.Sleep(s.opts.shutdownTimeout)
+
+	// close(s.jobs)
+	// close(s.batches)
+	// close(s.notifications)
+	// close(s.shutdown)
 }
