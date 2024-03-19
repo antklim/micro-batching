@@ -2,6 +2,7 @@ package microbatching
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -13,15 +14,17 @@ var ErrServiceClosed = errors.New("microbatching: Service closed")
 var ErrJobNotFound = errors.New("microbatching: Job not found")
 
 type serviceOptions struct {
-	batchSize int
-	frequency time.Duration
-	queueSize int
+	batchSize       int
+	frequency       time.Duration
+	queueSize       int
+	shutdownTimeout time.Duration
 }
 
 var defaultOptions = serviceOptions{
-	batchSize: 3,
-	frequency: time.Second,
-	queueSize: 100,
+	batchSize:       3,
+	frequency:       time.Second,
+	queueSize:       100,
+	shutdownTimeout: 5 * time.Second,
 }
 
 // Service is a micro-batching service that processes jobs in batches.
@@ -29,62 +32,48 @@ type Service struct {
 	opts       serviceOptions
 	inShutdown atomic.Bool
 
-	processor BatchProcessor
-	pDone     chan bool
+	jobs          chan Job
+	batches       chan []Job
+	notifications chan JobExtendedResult
+	done          chan bool
 
-	jobs             chan job
-	jobNotifications chan jobNotification
-	jobResults       map[string]job
+	jobResults map[string]JobExtendedResult
 }
 
-func NewService(processor BatchProcessor, opt ...ServiceOption) *Service {
+func NewService(opt ...ServiceOption) *Service {
 	opts := defaultOptions
 
 	for _, o := range opt {
 		o.apply(&opts)
 	}
 
-	jobs := make(chan job, opts.queueSize)
-	jobNotifications := make(chan jobNotification, opts.queueSize)
-	pDone := make(chan bool)
-	jobResults := make(map[string]job)
-
-	br := batchRunner{
-		batchSize:        opts.batchSize,
-		frequency:        opts.frequency,
-		processor:        processor,
-		jobs:             jobs,
-		jobNotifications: jobNotifications,
-		done:             pDone,
-	}
-
-	go br.run()
-
-	go func() {
-		for jn := range jobNotifications {
-			result := jobResults[jn.JobID]
-
-			newResult := job{
-				Job:   result.Job,
-				State: jn.State,
-			}
-
-			if jn.State == Completed {
-				newResult.Result = jn.Result
-			}
-
-			jobResults[jn.JobID] = newResult
-		}
-	}()
-
 	return &Service{
-		processor:        processor,
-		opts:             opts,
-		jobs:             jobs,
-		jobNotifications: jobNotifications,
-		jobResults:       jobResults,
-		pDone:            pDone,
+		opts:          opts,
+		jobs:          make(chan Job),
+		batches:       make(chan []Job),
+		notifications: make(chan JobExtendedResult),
+		done:          make(chan bool),
+		jobResults:    make(map[string]JobExtendedResult),
 	}
+}
+
+func (s *Service) Run(bp BatchProcessor) {
+	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency)
+
+	// group jobs into batches
+	go Batch(s.opts.batchSize, s.jobs, s.batches)
+
+	// runs batches
+	go runner.Run()
+
+	// collect notifications
+	go func() {
+		for n := range s.notifications {
+			s.jobResults[n.JobID] = n
+		}
+
+		s.done <- true
+	}()
 }
 
 func (s *Service) BatchSize() int {
@@ -101,23 +90,24 @@ func (s *Service) AddJob(j Job) error {
 		return ErrServiceClosed
 	}
 
-	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
-
-	s.jobResults[j.ID()] = newJob
-	s.jobs <- newJob
+	s.jobResults[j.ID()] = JobExtendedResult{
+		JobID: j.ID(),
+		State: Submitted,
+	}
+	s.jobs <- j
 
 	return nil
 }
 
 // JobResult returns the result of a job. It returns an error if the job is not found.
-func (s *Service) JobResult(jobID string) (JobState, JobResult, error) {
+func (s *Service) JobResult(jobID string) (JobExtendedResult, error) {
 	result, ok := s.jobResults[jobID]
 
 	if !ok {
-		return Submitted, JobResult{}, ErrJobNotFound
+		return JobExtendedResult{}, ErrJobNotFound
 	}
 
-	return result.State, result.Result, nil
+	return result, nil
 }
 
 func (s *Service) shuttingDown() bool {
@@ -131,10 +121,15 @@ func (s *Service) Shutdown() {
 	}
 
 	s.inShutdown.Store(true)
-	s.pDone <- true
-
-	// Should wait until all jobs in the queue are processed.
-
 	close(s.jobs)
-	close(s.jobNotifications)
+	close(s.batches)
+	close(s.notifications)
+
+	select {
+	case <-s.done:
+		return
+	case <-time.After(s.opts.shutdownTimeout):
+		fmt.Println("microbatching: service shutdown timeout")
+		return
+	}
 }

@@ -39,3 +39,10 @@ func WithQueueSize(v int) ServiceOption {
 		o.queueSize = v
 	})
 }
+
+// WithShutdownTimeout returns a ServiceOption that sets service shutdown timeout.
+func WithShutdownTimeout(v time.Duration) ServiceOption {
+	return newFuncOption(func(o *serviceOptions) {
+		o.shutdownTimeout = v
+	})
+}
