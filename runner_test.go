@@ -20,8 +20,6 @@ func batchSender(bc chan<- []mb.Job, testBatches [][]mb.Job) {
 	for i := 4; i < len(testBatches); i++ {
 		bc <- testBatches[i]
 	}
-
-	time.Sleep(50 * time.Millisecond)
 }
 
 func TestRunner(t *testing.T) {

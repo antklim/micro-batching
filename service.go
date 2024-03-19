@@ -35,7 +35,6 @@ type Service struct {
 	jobs          chan Job
 	batches       chan []Job
 	notifications chan JobExtendedResult
-	shutdown      chan bool
 	done          chan bool
 
 	jobResults map[string]JobExtendedResult
@@ -53,7 +52,6 @@ func NewService(opt ...ServiceOption) *Service {
 		jobs:          make(chan Job),
 		batches:       make(chan []Job),
 		notifications: make(chan JobExtendedResult),
-		shutdown:      make(chan bool),
 		done:          make(chan bool),
 		jobResults:    make(map[string]JobExtendedResult),
 	}
@@ -63,7 +61,7 @@ func (s *Service) Run(bp BatchProcessor) {
 	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency)
 
 	// group jobs into batches
-	go Batch(s.opts.batchSize, s.jobs, s.batches, s.opts.frequency, s.shutdown)
+	go Batch(s.opts.batchSize, s.jobs, s.batches, s.opts.frequency)
 
 	// runs batches
 	go runner.Run()
@@ -124,7 +122,8 @@ func (s *Service) Shutdown() {
 	}
 
 	s.inShutdown.Store(true)
-	s.shutdown <- true
+
+	close(s.jobs)
 
 	// TODO: replace fmt.Println with the logger
 	select {
@@ -136,6 +135,5 @@ func (s *Service) Shutdown() {
 		break
 	}
 
-	close(s.jobs)
-	close(s.shutdown)
+	close(s.done)
 }

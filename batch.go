@@ -8,7 +8,6 @@ func Batch[V any](
 	in <-chan V,
 	out chan<- []V,
 	freq time.Duration,
-	shutdown <-chan bool,
 ) {
 	ticker := time.NewTicker(freq)
 
@@ -16,23 +15,25 @@ func Batch[V any](
 
 	for {
 		select {
-		case <-shutdown:
-			if len(batch) > 0 {
-				out <- batch
-				batch = nil
-			}
+		case v, ok := <-in:
+			if ok {
+				batch = append(batch, v)
 
-			ticker.Stop()
+				if len(batch) == batchSize {
+					out <- batch
+					batch = nil
+				}
+			} else {
+				if len(batch) > 0 {
+					out <- batch
+					batch = nil
+				}
 
-			close(out)
+				ticker.Stop()
 
-			return
-		case v := <-in:
-			batch = append(batch, v)
+				close(out)
 
-			if len(batch) == batchSize {
-				out <- batch
-				batch = nil
+				return
 			}
 		case <-ticker.C:
 			if len(batch) > 0 {

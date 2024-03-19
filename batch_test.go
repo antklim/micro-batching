@@ -9,7 +9,6 @@ import (
 )
 
 func TestBatchGroupsJobsIntoBatches(t *testing.T) {
-	shutdown := make(chan bool)
 	jobs := make(chan int)
 	batches := make(chan []int)
 
@@ -18,15 +17,10 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 			jobs <- i
 		}
 
-		shutdown <- true
-
-		// wait for the batches to be processed
-		time.Sleep(50 * time.Millisecond)
 		close(jobs)
-		// close(batches)
 	}()
 
-	go mb.Batch(3, jobs, batches, 10*time.Millisecond, shutdown)
+	go mb.Batch(3, jobs, batches, 10*time.Millisecond)
 
 	var bb [][]int
 	for b := range batches {
@@ -44,23 +38,16 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 }
 
 func TestBatchSendsBatchesByTimer(t *testing.T) {
-	shutdown := make(chan bool)
 	jobs := make(chan int)
 	batches := make(chan []int)
 
 	go func() {
 		jobs <- 1
-		shutdown <- true
-
-		// wait for the batches to be processed
-		time.Sleep(50 * time.Millisecond)
 
 		close(jobs)
-		// close(batches)
-
 	}()
 
-	go mb.Batch(3, jobs, batches, 10*time.Millisecond, shutdown)
+	go mb.Batch(3, jobs, batches, 10*time.Millisecond)
 
 	var bb [][]int
 	for b := range batches {
