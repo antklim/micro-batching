@@ -2,6 +2,7 @@ package microbatching
 
 import (
 	"errors"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -32,6 +33,9 @@ type Service struct {
 	jobs          chan Job
 	batches       chan []Job
 	notifications chan JobNotification
+	done          chan bool
+
+	jobResults map[string]JobNotification
 }
 
 func NewService(opt ...ServiceOption) *Service {
@@ -46,11 +50,28 @@ func NewService(opt ...ServiceOption) *Service {
 		jobs:          make(chan Job),
 		batches:       make(chan []Job),
 		notifications: make(chan JobNotification),
+		done:          make(chan bool),
+		jobResults:    make(map[string]JobNotification),
 	}
 }
 
-func (s *Service) Run() {
-	// go internal.Batch(s.opts.batchSize, s.jobs, s.batches)
+func (s *Service) Run(bp BatchProcessor) {
+	runner := NewRunner(bp, s.batches, s.notifications, s.opts.frequency)
+
+	// group jobs into batches
+	go Batch(s.opts.batchSize, s.jobs, s.batches)
+
+	// runs batches
+	go runner.Run()
+
+	// collect notifications
+	go func() {
+		for n := range s.notifications {
+			s.jobResults[n.JobID] = n
+		}
+
+		s.done <- true
+	}()
 }
 
 func (s *Service) BatchSize() int {
@@ -62,29 +83,30 @@ func (s *Service) Frequency() time.Duration {
 }
 
 // AddJob adds a job to the queue. It returns an error if the service is closed.
-// func (s *Service) AddJob(j Job) error {
-// 	if s.shuttingDown() {
-// 		return ErrServiceClosed
-// 	}
+func (s *Service) AddJob(j Job) error {
+	if s.shuttingDown() {
+		return ErrServiceClosed
+	}
 
-// 	newJob := job{j, Submitted, JobResult{JobID: j.ID()}}
+	s.jobResults[j.ID()] = JobNotification{
+		JobID: j.ID(),
+		State: Submitted,
+	}
+	s.jobs <- j
 
-// 	s.jobResults[j.ID()] = newJob
-// 	s.jobs <- newJob
+	return nil
+}
 
-// 	return nil
-// }
+// JobResult returns the result of a job. It returns an error if the job is not found.
+func (s *Service) JobResult(jobID string) (JobNotification, error) {
+	result, ok := s.jobResults[jobID]
 
-// // JobResult returns the result of a job. It returns an error if the job is not found.
-// func (s *Service) JobResult(jobID string) (JobState, JobResult, error) {
-// 	result, ok := s.jobResults[jobID]
+	if !ok {
+		return JobNotification{}, ErrJobNotFound
+	}
 
-// 	if !ok {
-// 		return Submitted, JobResult{}, ErrJobNotFound
-// 	}
-
-// 	return result.State, result.Result, nil
-// }
+	return result, nil
+}
 
 func (s *Service) shuttingDown() bool {
 	return s.inShutdown.Load()
@@ -97,4 +119,15 @@ func (s *Service) Shutdown() {
 	}
 
 	s.inShutdown.Store(true)
+	close(s.jobs)
+	close(s.batches)
+	close(s.notifications)
+
+	select {
+	case <-s.done:
+		return
+	case <-time.After(5 * time.Second):
+		fmt.Println("microbatching: service shutdown timeout")
+		return
+	}
 }

@@ -16,6 +16,4 @@ func Batch[V any](batchSize int, in <-chan V, out chan<- []V) {
 	if len(batch) > 0 {
 		out <- batch
 	}
-
-	close(out)
 }

@@ -2,6 +2,7 @@ package microbatching_test
 
 import (
 	"testing"
+	"time"
 
 	mb "github.com/antklim/micro-batching"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,10 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 			jobs <- i
 		}
 		close(jobs)
+
+		// wait for the batches to be processed
+		time.Sleep(50 * time.Millisecond)
+		close(batches)
 	}()
 
 	go mb.Batch(3, jobs, batches)
