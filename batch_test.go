@@ -39,3 +39,5 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 	}
 	assert.Equal(t, expectedBatches, bb)
 }
+
+func TestBatchSendsBatchesByTimer(t *testing.T) {}
