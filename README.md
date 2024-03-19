@@ -12,11 +12,11 @@ package main
 
 func main() {
     // create and run a micro-batching service
-	srv := mb.NewService(mb.WithFrequency(10 * time.Millisecond))
-	// provide a batch processor
+    srv := mb.NewService(mb.WithFrequency(10 * time.Millisecond))
+    // provide a batch processor
     srv.Run(&BatchProcessor{})
 
-	jobsSize := 7
+    jobsSize := 7
 
     for i := 0; i < jobsSize; i++ {
         // add jobs to be processed
@@ -27,17 +27,17 @@ func main() {
     time.Sleep(20 * time.Millisecond)
 
     // get the jobs results
-	for i := 0; i < jobsSize; i++ {
-		r, err := srv.JobResult(i)
+    for i := 0; i < jobsSize; i++ {
+        r, err := srv.JobResult(i)
 
-		if err != nil {
-			fmt.Println(err)
-		} else {
+        if err != nil {
+            fmt.Println(err)
+        } else {
             fmt.Printf("Job ID: %s, State: %s\n", r.JobID, r.State)
         }
-	}
+    }
 
-	srv.Shutdown()
+    srv.Shutdown()
 }
 ```
 
