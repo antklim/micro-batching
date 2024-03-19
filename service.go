@@ -14,15 +14,17 @@ var ErrServiceClosed = errors.New("microbatching: Service closed")
 var ErrJobNotFound = errors.New("microbatching: Job not found")
 
 type serviceOptions struct {
-	batchSize int
-	frequency time.Duration
-	queueSize int
+	batchSize       int
+	frequency       time.Duration
+	queueSize       int
+	shutdownTimeout time.Duration
 }
 
 var defaultOptions = serviceOptions{
-	batchSize: 3,
-	frequency: time.Second,
-	queueSize: 100,
+	batchSize:       3,
+	frequency:       time.Second,
+	queueSize:       100,
+	shutdownTimeout: 5 * time.Second,
 }
 
 // Service is a micro-batching service that processes jobs in batches.
@@ -126,7 +128,7 @@ func (s *Service) Shutdown() {
 	select {
 	case <-s.done:
 		return
-	case <-time.After(5 * time.Second):
+	case <-time.After(s.opts.shutdownTimeout):
 		fmt.Println("microbatching: service shutdown timeout")
 		return
 	}
