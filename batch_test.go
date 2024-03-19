@@ -23,7 +23,7 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 		close(batches)
 	}()
 
-	go mb.Batch(3, jobs, batches)
+	go mb.Batch(3, jobs, batches, 10*time.Millisecond)
 
 	var bb [][]int
 	for b := range batches {
@@ -40,4 +40,27 @@ func TestBatchGroupsJobsIntoBatches(t *testing.T) {
 	assert.Equal(t, expectedBatches, bb)
 }
 
-func TestBatchSendsBatchesByTimer(t *testing.T) {}
+func TestBatchSendsBatchesByTimer(t *testing.T) {
+	jobs := make(chan int)
+	batches := make(chan []int)
+
+	go func() {
+		jobs <- 1
+		close(jobs)
+
+		// wait for the batches to be processed
+		time.Sleep(50 * time.Millisecond)
+		close(batches)
+	}()
+
+	go mb.Batch(3, jobs, batches, 10*time.Millisecond)
+
+	var bb [][]int
+	for b := range batches {
+		bb = append(bb, b)
+	}
+
+	assert.Equal(t, 1, len(bb))
+	expectedBatches := [][]int{{1}}
+	assert.Equal(t, expectedBatches, bb)
+}
