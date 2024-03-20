@@ -79,6 +79,7 @@ The batch runner listens to the batch channel and accumulates the batches. When 
 
 The service listens to the notifications channel and updates the job results.
 
+### Job results
 Job results are available via the `JobResult` method.
 
 ### Service shutdown
