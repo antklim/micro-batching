@@ -69,6 +69,9 @@ The service provides the following API:
     +-----------------------------------------------------------+
 ```
 
+### Running service
+Service needs batch processor to be provided. The batch processor is responsible for processing the batches of jobs. The batch processor should implement the `BatchProcessor` interface. To run the service, call the `Run` method with the batch processor instance.
+
 ### Processing jobs
 
 When `AddJob` is called, the job is added to the jobs channel. The batching go-routine listens to the jobs channel and creates batches of jobs. When the batch is ready or when the frequency time ticks, the batches are sent to the batch runner go-routine.
