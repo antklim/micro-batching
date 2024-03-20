@@ -18,7 +18,7 @@ func ExampleService() {
 		srv.AddJob(j)
 	}
 
-	time.Sleep(20 * time.Millisecond)
+	time.Sleep(50 * time.Millisecond)
 
 	for _, j := range testJobs {
 		r, err := srv.JobResult(j.ID())
