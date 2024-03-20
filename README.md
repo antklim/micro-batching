@@ -60,6 +60,43 @@ The service provides the following API:
 
 ## Architecture
 
+```
++---------+  jobs channel  +-------+  batches channel  +-----------------+
+| Service | -------------> | Batch | ----------------> | Batch processor |
++---------+                +-------+                   +-----------------+
+    ^                                                           |
+    |                  notifications channel                    |
+    +-----------------------------------------------------------+
+```
+
+### Processing jobs
+
+When `AddJob` is called, the job is added to the jobs channel. The batching go-routine listens to the jobs channel and creates batches of jobs. When the batch is ready or when the frequency time ticks, the batches are sent to the batch runner go-routine.
+
+
+The batch runner listens to the batch channel and accumulates the batches. When the frequency timer ticks the batches are sent to the batch processor. The results of the processed batches are sent to the notifications channel.
+
+
+The service listens to the notifications channel and updates the job results.
+
+Job results are available via the `JobResult` method.
+
+### Service shutdown
+
+When the `Shutdown` method is called, the service closes the jobs channel and waits for the submitted jobs to be processed.
+
+
+Closing jobs channel causes batch go-routine to send all the remaining batches to the batch runner. The batch go-routine closes the batches channel.
+
+
+Closing the batches channel causes the batch runner to send all the remaining batches to the batch processor. The batch runner closes the notifications channel.
+
+
+Closing the notifications channel causes the service to stop listening to the notifications channel and send the final event to the `done` channel.
+
+
+The `Shutdown` method is waiting for the event in `done` channel or for the timeout to occur.
+
 ## Testing
 
 To test the library, run the following command:
